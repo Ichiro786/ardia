@@ -39,7 +39,13 @@ What the audit of `apps/android` found, what this branch fixes, and what's left.
 - `intent:` links can no longer carry URI-grant or clear-task flags into the app they open (`browser/PageCapture.kt`).
 
 ### Motion
-Fades for sheet content, archive and synced-spaces rows, the search tray tint, the incognito backdrop and voice search phases.
+- Fades for sheet content, archive and synced-spaces rows, the search tray tint, the incognito backdrop and voice search phases.
+- A sheet touched while it closed froze half-open over a dead scrim: its drag stays off once it starts closing, and the close always finishes (`app/Containers.kt`).
+- Sheets keep the finger's speed when let go, both when they spring back and when they close (`Containers.kt`).
+- The loading line no longer carries the last tab's progress into the next one (`browsing/BrowsingView.kt`).
+- Find in Page slides in and out with the bar instead of popping (`BrowsingView.kt`).
+- Reader mode fades instead of sliding when Reduce Motion is on, and no longer writes state while drawing (`BrowsingView.kt`).
+- The Incognito label opens and closes its space smoothly instead of making the icon jump (`search/IncognitoToggle.kt`).
 
 ## Not fixed yet
 
@@ -53,6 +59,7 @@ From the second, wider pass:
 - Private-tab favicons are fetched outside the private session and cached on disk (`browsing/PageLayer.kt`, `TabPager.kt`, `design/Favicon.kt`); a favicon that fails once isn't retried until restart. Medium.
 - Tab state saves typed form values to the database (`browser/WebViewPage.kt` `includeForms`). Medium, product call.
 - Low: sheet drag can lose a delta at high touch rates (`app/Containers.kt`); Omnibox close blocks the main thread; saving page states on every background runs on main; closing a tab serialises its state first (`LivePageRoster.kt`); some English strings live in code; a few touch targets under 48 dp; settings rows lack a button role; no native debug symbols in release; "Open in Default Browser" can show when the default-browser role is unavailable; copied private URLs aren't marked sensitive; regular-profile clear-data could use `WebStorageCompat.deleteBrowsingData`.
+- Motion pass, not fixed yet: after a committed back or forward swipe the old page flashes back for a moment before the new one loads, and a fast flick eases in from rest (`browsing/PageLayer.kt` `finishSwipe`); a second swipe or pull started during the last one's animation can cut it short (`PageLayer.kt`); a toast jumps between top and bottom when the keyboard opens (`design/Toasts.kt`); the Settings back gesture resets on a fixed 500 ms timer (`settings/SettingsView.kt`); sync and blocking settings sections appear and disappear without animation (`settings/SyncPages.kt`, `BlockingPages.kt`); the long-press menu and share sheet exit don't use the app's motion (`BrowsingView.kt`, `share/ShareSheetView.kt`); a replaced tab preview swaps without a crossfade (`tabs/TabCard.kt`).
 - CI: no lint step, the emulator job rebuilds and re-downloads its image each run, and the Hermes download has no timeout.
 
 From the first pass:

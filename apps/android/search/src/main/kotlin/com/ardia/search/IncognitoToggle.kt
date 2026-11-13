@@ -1,10 +1,12 @@
 package com.ardia.search
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -55,8 +57,12 @@ internal fun IncognitoToggle(isOn: Boolean, onToggle: () -> Unit, modifier: Modi
     ) {
         AnimatedVisibility(
             visible = isOn,
-            enter = fadeIn(Motion.modeToggle.spec()) + scaleIn(Motion.modeToggle.spec(), initialScale = 0.9f, transformOrigin = TransformOrigin(1f, 0.5f)),
-            exit = fadeOut(Motion.modeToggle.spec()) + scaleOut(Motion.modeToggle.spec(), targetScale = 0.9f, transformOrigin = TransformOrigin(1f, 0.5f)),
+            enter = fadeIn(Motion.modeToggle.spec()) +
+                scaleIn(Motion.modeToggle.spec(), initialScale = 0.9f, transformOrigin = TransformOrigin(1f, 0.5f)) +
+                expandHorizontally(Motion.modeToggle.spec(), expandFrom = Alignment.End),
+            exit = fadeOut(Motion.modeToggle.spec()) +
+                scaleOut(Motion.modeToggle.spec(), targetScale = 0.9f, transformOrigin = TransformOrigin(1f, 0.5f)) +
+                shrinkHorizontally(Motion.modeToggle.spec(), shrinkTowards = Alignment.End),
         ) {
             Text(stringResource(R.string.search_incognito), style = ArdiaType.footnote.medium, color = Color.White.copy(alpha = 0.75f), maxLines = 1)
         }

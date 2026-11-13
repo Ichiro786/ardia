@@ -12,6 +12,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -31,9 +33,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -225,13 +229,15 @@ fun BrowsingView(model: AppModel, isFront: Boolean, modifier: Modifier = Modifie
             PagerNeighbors(model, pager, statusTop, corner)
         }
         if (page != null) {
-            val progress by page.select { it.progress }
-            val loading by page.select { it.isLoading }
-            LoadingLine(
-                progress = loadFreeze ?: progress.toDouble(),
-                isLoading = loadFreeze != null || loading,
-                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding(),
-            )
+            key(page) {
+                val progress by page.select { it.progress }
+                val loading by page.select { it.isLoading }
+                LoadingLine(
+                    progress = loadFreeze ?: progress.toDouble(),
+                    isLoading = loadFreeze != null || loading,
+                    modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding(),
+                )
+            }
         }
         Bar(
             model = model,
@@ -246,7 +252,14 @@ fun BrowsingView(model: AppModel, isFront: Boolean, modifier: Modifier = Modifie
             onSelectTab = ::switchTab,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
-        page?.takeIf { isFinding }?.let { FindBar(it, onDone = model::endFindOnPage, modifier = Modifier.align(Alignment.BottomCenter)) }
+        AnimatedVisibility(
+            visible = isFinding,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = if (reduceMotion) fadeIn(Motion.reducedFade.spec()) else slideInVertically(Motion.searchRise.spec()) { it },
+            exit = if (reduceMotion) fadeOut(Motion.reducedFade.spec()) else slideOutVertically(Motion.trayDismiss.spec()) { it },
+        ) {
+            page?.let { FindBar(it, onDone = model::endFindOnPage) }
+        }
         if (fullscreen != null) FullscreenVideoLayer(fullscreen)
         if (tab != null) {
             LaunchedEffect(menuVisible) { if (menuVisible) showsSiteSettings = false }
@@ -335,14 +348,15 @@ private fun rememberCover(model: AppModel, pager: TabPager, tab: BrowserTab): Bi
 
 @Composable
 private fun ReaderLayer(model: AppModel, readerId: String?, settings: ReaderSettings) {
-    var shownId by remember { mutableStateOf(readerId) }
-    if (readerId != null) shownId = readerId
+    val reduceMotion = LocalReduceMotion.current
+    val lastId = remember { mutableStateOf(readerId) }
+    SideEffect { if (readerId != null) lastId.value = readerId }
     AnimatedVisibility(
         visible = readerId != null,
-        enter = slideInVertically(Motion.searchRise.spec()) { it },
-        exit = slideOutVertically(Motion.trayDismiss.spec()) { it },
+        enter = if (reduceMotion) fadeIn(Motion.reducedFade.spec()) else slideInVertically(Motion.searchRise.spec()) { it },
+        exit = if (reduceMotion) fadeOut(Motion.reducedFade.spec()) else slideOutVertically(Motion.trayDismiss.spec()) { it },
     ) {
-        val id = shownId ?: return@AnimatedVisibility
+        val id = readerId ?: lastId.value ?: return@AnimatedVisibility
         ReaderView(model.page(id), settings, onDone = { model.browse.readerTabId = null })
     }
 }

@@ -66,6 +66,7 @@ object SheetLayout {
 class SheetPosition(private val scope: CoroutineScope) {
     val offset = Animatable(0f)
     var height by mutableStateOf(0f)
+    var releaseVelocity = 0f
 
     val progress: Float get() = if (height <= 0f) 0f else (1f - offset.value / height).coerceIn(0f, 1f)
 
@@ -78,7 +79,12 @@ class SheetPosition(private val scope: CoroutineScope) {
 
     suspend fun settle(velocity: Float, flingDismiss: Float, dismiss: () -> Unit) {
         val shouldDismiss = velocity > flingDismiss || (velocity >= 0f && offset.value > height * SheetLayout.DISMISS_SHARE)
-        if (shouldDismiss) dismiss() else offset.animateTo(0f, Motion.smooth.spec())
+        if (shouldDismiss) {
+            releaseVelocity = velocity.coerceAtLeast(0f)
+            dismiss()
+        } else {
+            offset.animateTo(0f, Motion.smooth.spec(), initialVelocity = velocity)
+        }
     }
 }
 
@@ -96,6 +102,7 @@ fun <T : Any> SheetHost(
     val reduceMotion = LocalReduceMotion.current
     val dismiss by rememberUpdatedState(onDismiss)
     val report by rememberUpdatedState(onProgress)
+    val latest by rememberUpdatedState(sheet)
     LaunchedEffect(sheet) {
         if (sheet != null) {
             val wasHidden = shown == null
@@ -104,10 +111,20 @@ fun <T : Any> SheetHost(
                 snapshotFlow { position.height }.first { it > 0f }
                 position.offset.snapTo(position.height)
             }
+            position.releaseVelocity = 0f
             position.offset.animateTo(0f, (if (reduceMotion) Motion.reducedSettle else Motion.smooth).spec())
         } else if (shown != null) {
-            position.offset.animateTo(position.height, (if (reduceMotion) Motion.reducedFade else Motion.trayDismiss).spec())
-            shown = null
+            val velocity = position.releaseVelocity
+            position.releaseVelocity = 0f
+            try {
+                position.offset.animateTo(
+                    position.height,
+                    (if (reduceMotion) Motion.reducedFade else Motion.trayDismiss).spec(),
+                    initialVelocity = if (reduceMotion) 0f else velocity,
+                )
+            } finally {
+                if (latest == null) shown = null
+            }
         }
     }
     LaunchedEffect(position) { snapshotFlow { if (shown == null) 0f else position.progress }.collect { report(it) } }
@@ -117,17 +134,19 @@ fun <T : Any> SheetHost(
     val connection = remember(position) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (latest == null) return Offset.Zero
                 if (source != NestedScrollSource.UserInput || available.y >= 0f || position.offset.value <= 0f) return Offset.Zero
                 return Offset(0f, position.dragBy(available.y))
             }
 
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (latest == null) return Offset.Zero
                 if (source != NestedScrollSource.UserInput || available.y <= 0f) return Offset.Zero
                 return Offset(0f, position.dragBy(available.y))
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (position.offset.value <= 0f) return Velocity.Zero
+                if (latest == null || position.offset.value <= 0f) return Velocity.Zero
                 position.settle(available.y, flingDismiss) { dismiss() }
                 return available
             }
@@ -164,6 +183,7 @@ fun <T : Any> SheetHost(
                     .draggable(
                         rememberDraggableState { delta -> position.dragBy(delta) },
                         Orientation.Vertical,
+                        enabled = sheet != null,
                         onDragStopped = { velocity -> position.settle(velocity, flingDismiss) { dismiss() } },
                     )
                     .testTag(RootTags.SHEET),
