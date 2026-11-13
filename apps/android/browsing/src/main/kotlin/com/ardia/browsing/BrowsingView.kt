@@ -59,17 +59,19 @@ import com.ardia.browser.FullscreenVideo
 import com.ardia.browser.PageColors
 import com.ardia.browser.ScrollDirection
 import com.ardia.design.ArdiaThemeState
+import com.ardia.design.BarButtons
 import com.ardia.design.BrowseLayout
 import com.ardia.design.LoadingLine
 import com.ardia.design.LocalArdiaDarkTheme
+import com.ardia.design.LocalBarButtonScale
 import com.ardia.design.LocalReduceMotion
 import com.ardia.design.Motion
 import com.ardia.store.BrowserTab
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import kotlin.math.roundToInt
 
 @Composable
 fun BrowsingView(model: AppModel, isFront: Boolean, modifier: Modifier = Modifier) {
@@ -88,9 +90,10 @@ fun BrowsingView(model: AppModel, isFront: Boolean, modifier: Modifier = Modifie
     var showsSiteSettings by remember { mutableStateOf(false) }
     val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val navigationBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val barHeight = BarGeometry.height(navigationBottom)
+    val barScale = LocalBarButtonScale.current
+    val barHeight = BarGeometry.height(navigationBottom, barScale)
     val collapses = model.settings.collapsesBottomBar
-    val pageBottomInset = if (collapses) 0.dp else BarGeometry.pageBottomInset(navigationBottom)
+    val pageBottomInset = if (collapses) 0.dp else BarGeometry.pageBottomInset(navigationBottom, barScale)
     val colors = page?.select { it.themeColor to it.backgroundColor }?.value
     val tone = tab?.let { model.tone(it, colors?.first, colors?.second) }
     val isFinding = model.browse.isFindPresented && page != null && isFront
@@ -312,8 +315,8 @@ private fun Bar(
                     onCloseTab = { model.tabs.selectedTabId?.let(model::closeTab) },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = BarGeometry.centerFromBottom(navigationBottom) - BrowseLayout.hitTarget / 2)
-                        .height(BrowseLayout.hitTarget),
+                        .padding(bottom = BarGeometry.centerFromBottom(navigationBottom, LocalBarButtonScale.current) - BarButtons.rowHeight(LocalBarButtonScale.current) / 2)
+                        .height(BarButtons.rowHeight(LocalBarButtonScale.current)),
                 )
             }
         }

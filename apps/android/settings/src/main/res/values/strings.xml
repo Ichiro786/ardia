@@ -16,6 +16,7 @@
     <string name="settings_auto_open_keyboard">Auto-Open Keyboard</string>
     <string name="settings_archive_inactive_tabs">Archive Inactive Tabs</string>
     <string name="settings_open_app_links_in">Open App Links In</string>
+    <string name="settings_bottom_button_size">Bottom Button Size</string>
     <string name="settings_clear_browsing_data">Clear Browsing Data</string>
     <string name="settings_export_open_tabs">Export Open Tabs</string>
     <string name="settings_open_tabs_from_ardia">Open Tabs from Ardia</string>

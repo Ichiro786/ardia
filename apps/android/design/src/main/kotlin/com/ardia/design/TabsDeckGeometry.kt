@@ -10,7 +10,7 @@ data class DeckSize(val width: Double, val height: Double)
 
 data class DeckPoint(val x: Double, val y: Double)
 
-data class TabsDeckGeometry(val container: DeckSize, val safeTop: Double, val safeBottom: Double, val safeSide: Double = 0.0) {
+data class TabsDeckGeometry(val container: DeckSize, val safeTop: Double, val safeBottom: Double, val safeSide: Double = 0.0, val barLift: Double = 0.0) {
     val cardSize: DeckSize
     val focusLeading: Double
     val spacing: Double
@@ -22,7 +22,7 @@ data class TabsDeckGeometry(val container: DeckSize, val safeTop: Double, val sa
         val width = max(container.width, 1.0)
         val height = max(container.height, 1.0)
         val bandTop = safeTop + TOP_RESERVE + HEADER_HEIGHT
-        barCenterY = height - max(BAR_CENTER_FROM_BOTTOM, safeBottom + BAR_HIT_TARGET / 2)
+        barCenterY = height - max(BAR_CENTER_FROM_BOTTOM, safeBottom + BAR_HIT_TARGET / 2) - barLift
         val bandBottom = barCenterY - BAR_CLEARANCE
         val band = max(bandBottom - bandTop, 120.0)
         val aspect = height / width

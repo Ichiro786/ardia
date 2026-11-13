@@ -14,11 +14,11 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 object BarGeometry {
-    fun centerFromBottom(navigationInset: Dp): Dp = BrowseLayout.barCenter(navigationInset)
+    fun centerFromBottom(navigationInset: Dp, scale: Float = 1f): Dp = BrowseLayout.barCenter(navigationInset, scale)
 
-    fun height(navigationInset: Dp): Dp = BrowseLayout.barHeight + (centerFromBottom(navigationInset) - BrowseLayout.barCenterFromBottom)
+    fun height(navigationInset: Dp, scale: Float = 1f): Dp = BrowseLayout.barHeight + (centerFromBottom(navigationInset, scale) - BrowseLayout.barCenterFromBottom)
 
-    fun pageBottomInset(navigationInset: Dp): Dp = height(navigationInset) - PAGE_OVERLAP
+    fun pageBottomInset(navigationInset: Dp, scale: Float = 1f): Dp = height(navigationInset, scale) - PAGE_OVERLAP
 
     val PAGE_OVERLAP: Dp = Dp(26f)
 }

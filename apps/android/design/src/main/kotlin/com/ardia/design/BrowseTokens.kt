@@ -55,5 +55,5 @@ object BrowseLayout {
     val progressHeight = 2.5.dp
     val toolbarTile = 78.dp
 
-    fun barCenter(navigationInset: Dp): Dp = max(barCenterFromBottom, navigationInset + hitTarget / 2)
+    fun barCenter(navigationInset: Dp, scale: Float = 1f): Dp = max(barCenterFromBottom, navigationInset + hitTarget / 2) + BarButtons.lift(scale)
 }

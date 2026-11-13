@@ -166,6 +166,19 @@ enum class ColorChoice(val raw: String, val title: String) {
     }
 }
 
+enum class BarButtonSize(val raw: String, val title: String, val scale: Float) {
+    STANDARD("standard", "Standard", 1f),
+    LARGE("large", "Large", 1.15f),
+    LARGER("larger", "Larger", 1.3f),
+    ;
+
+    companion object {
+        val default = LARGE
+
+        fun of(raw: String?): BarButtonSize? = entries.firstOrNull { it.raw == raw }
+    }
+}
+
 sealed interface LookSource {
     data class Preset(val choice: ColorChoice) : LookSource
 
@@ -178,6 +191,7 @@ data class AppSettings(
     val hasFinishedOnboarding: Boolean = false,
     val archiveCardShown: Boolean = false,
     val colorChoice: ColorChoice? = null,
+    val barButtonSize: BarButtonSize = BarButtonSize.default,
 ) {
     val matchesMac: Boolean get() = colorChoice == null
 
@@ -197,6 +211,7 @@ class AppPreferences(private val store: KeyValueStore) {
             hasFinishedOnboarding = store.boolean(KEY_FINISHED_ONBOARDING) ?: false,
             archiveCardShown = store.boolean(KEY_ARCHIVE_CARD_SHOWN) ?: false,
             colorChoice = ColorChoice.of(store.string(KEY_COLOR)),
+            barButtonSize = BarButtonSize.of(store.string(KEY_BAR_BUTTON_SIZE)) ?: BarButtonSize.default,
         ),
     )
 
@@ -209,6 +224,11 @@ class AppPreferences(private val store: KeyValueStore) {
 
     fun setMatchesMac(matches: Boolean, shownChoice: ColorChoice? = null) =
         setColorChoice(if (matches) null else settings.value.colorChoice ?: shownChoice ?: ColorChoice.standard)
+
+    fun setBarButtonSize(size: BarButtonSize) = synchronized(lock) {
+        store.putString(KEY_BAR_BUTTON_SIZE, size.raw)
+        _settings.value = _settings.value.copy(barButtonSize = size)
+    }
 
     fun setCollapsesBottomBar(value: Boolean) = put(KEY_COLLAPSE_BOTTOM_BAR, value) { it.copy(collapsesBottomBar = value) }
 
@@ -229,5 +249,6 @@ class AppPreferences(private val store: KeyValueStore) {
         const val KEY_FINISHED_ONBOARDING = "settings.finishedOnboarding"
         const val KEY_ARCHIVE_CARD_SHOWN = "tabs.archiveCardShown"
         const val KEY_COLOR = "settings.color"
+        const val KEY_BAR_BUTTON_SIZE = "settings.barButtonSize"
     }
 }

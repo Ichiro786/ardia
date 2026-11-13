@@ -41,10 +41,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ardia.design.ArdiaSymbols
 import com.ardia.design.ArdiaType
-import com.ardia.design.BrowseLayout
+import com.ardia.design.BarButtons
 import com.ardia.design.FrostedBackdrop
 import com.ardia.design.FrostedStyle
 import com.ardia.design.LocalArdiaDarkTheme
+import com.ardia.design.LocalBarButtonScale
 import com.ardia.design.LookFrosting
 import com.ardia.design.Palette
 import com.ardia.design.ProfileLook
@@ -106,10 +107,11 @@ private fun PlusButton(
     val label = stringResource(if (isIncognito) R.string.tabs_new_incognito_tab else R.string.tabs_new_tab)
     val hint = stringResource(R.string.tabs_plus_hint)
     val dark = LocalArdiaDarkTheme.current
-    Box(Modifier.heightIn(min = BrowseLayout.hitTarget), contentAlignment = Alignment.Center) {
+    val scale = LocalBarButtonScale.current
+    Box(Modifier.heightIn(min = BarButtons.rowHeight(scale)), contentAlignment = Alignment.Center) {
         Box(
             Modifier
-                .size(TabsLayout.barPlus)
+                .size(TabsLayout.barPlus * scale)
                 .frosted(backdrop, CircleShape, style)
                 .combinedClickable(
                     interactionSource = remember { MutableInteractionSource() },
@@ -125,7 +127,7 @@ private fun PlusButton(
                 },
             contentAlignment = Alignment.Center,
         ) {
-            Icon(ArdiaSymbols.plus, null, Modifier.size(22.dp), tint = SystemPalette.label.resolve(dark))
+            Icon(ArdiaSymbols.plus, null, Modifier.size(22.dp * scale), tint = SystemPalette.label.resolve(dark))
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             val pick = { action: () -> Unit -> { menu = false; action() } }
@@ -152,12 +154,13 @@ private fun PlusButton(
 @Composable
 internal fun DeckCircleButton(symbol: ImageVector, label: String, backdrop: FrostedBackdrop?, style: FrostedStyle, action: () -> Unit) {
     val dark = LocalArdiaDarkTheme.current
+    val circle = TabsLayout.barCircle * LocalBarButtonScale.current
     Box(
         Modifier
-            .size(BrowseLayout.hitTarget)
+            .size(BarButtons.hitTarget(circle))
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = ripple(bounded = false, radius = TabsLayout.barCircle / 2),
+                indication = ripple(bounded = false, radius = circle / 2),
                 onClick = action,
             )
             .clearAndSetSemantics {
@@ -167,8 +170,8 @@ internal fun DeckCircleButton(symbol: ImageVector, label: String, backdrop: Fros
             },
         contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.size(TabsLayout.barCircle).frosted(backdrop, CircleShape, style), contentAlignment = Alignment.Center) {
-            Icon(symbol, null, Modifier.size(TabsLayout.barSymbol), tint = SystemPalette.secondaryLabel.resolve(dark))
+        Box(Modifier.size(circle).frosted(backdrop, CircleShape, style), contentAlignment = Alignment.Center) {
+            Icon(symbol, null, Modifier.size(TabsLayout.barSymbol * LocalBarButtonScale.current), tint = SystemPalette.secondaryLabel.resolve(dark))
         }
     }
 }
