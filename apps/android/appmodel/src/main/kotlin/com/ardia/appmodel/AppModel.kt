@@ -3,6 +3,7 @@ package com.ardia.appmodel
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.webkit.CookieManager
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -19,6 +20,7 @@ import com.ardia.blocking.MyFiltersResult
 import com.ardia.browser.BrowserUrl as PageUrl
 import com.ardia.browser.DownloadFailure
 import com.ardia.browser.DownloadOutcome
+import com.ardia.browser.DownloadProgress
 import com.ardia.browser.Page
 import com.ardia.browser.PageColors
 import com.ardia.browser.PageDownload
@@ -29,7 +31,6 @@ import com.ardia.browser.PageState
 import com.ardia.browser.PageTone
 import com.ardia.browser.PopupRequest
 import com.ardia.browser.PrivatePagesUnavailableException
-import com.ardia.browser.DownloadProgress
 import com.ardia.browser.SitePreferences
 import com.ardia.browser.VisitKind
 import com.ardia.browser.WebsiteDataKind
@@ -368,6 +369,7 @@ class AppModel(
 
     fun sceneEnteredBackground() {
         savePageStates()
+        if (engine != null && !isDemo) runCatching { CookieManager.getInstance().flush() }
         sync.appBackgrounded()
     }
 

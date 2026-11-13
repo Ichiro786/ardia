@@ -138,8 +138,16 @@ internal object ExternalLauncher {
         intent.addCategory(Intent.CATEGORY_BROWSABLE)
         intent.component = null
         intent.selector = null
+        intent.flags = intent.flags and UNTRUSTED_FLAGS.inv()
         return intent
     }
+
+    private const val UNTRUSTED_FLAGS = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+        Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+        Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or
+        Intent.FLAG_GRANT_PREFIX_URI_PERMISSION or
+        Intent.FLAG_ACTIVITY_CLEAR_TASK or
+        Intent.FLAG_ACTIVITY_CLEAR_TOP
 
     fun appLinkIntent(url: String): Intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
         .addCategory(Intent.CATEGORY_BROWSABLE)
