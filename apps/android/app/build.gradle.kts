@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val signReleaseWithDebugKey = providers.gradleProperty("ardia.signReleaseWithDebugKey").map(String::toBoolean).getOrElse(false)
+
 android {
     namespace = "com.ardia.browser.android"
     compileSdk = libs.versions.compileSdk.get().toInt()
@@ -22,6 +24,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (signReleaseWithDebugKey) signingConfig = signingConfigs.getByName("debug")
         }
     }
 

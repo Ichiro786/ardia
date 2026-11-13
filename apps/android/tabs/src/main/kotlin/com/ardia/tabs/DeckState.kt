@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import com.ardia.appmodel.AppModel
@@ -59,6 +60,8 @@ class DeckState internal constructor(
     val positionProgress = Animatable(1f)
     val cardsOpacity = Animatable(1f)
     var cover: ImageBitmap? by mutableStateOf(null)
+        private set
+    var coverFill: Color? by mutableStateOf(null)
         private set
     val coverOpacity = Animatable(0f)
 
@@ -166,6 +169,7 @@ class DeckState internal constructor(
         if (fromPage != null && handoff != null) {
             val handoffIndex = order.indexOf(handoff.tabId)
             if (handoffIndex >= 0) scroll.snapTo(DeckOrder.handoffScroll(handoffIndex).toFloat())
+            coverFill = SnapshotEdge.bottomColor(handoff.image)?.let { Color(it) }
             cover = handoff.image.asImageBitmap()
             coverOpacity.snapTo(1f)
             phase = DeckPhase.Settled
@@ -258,6 +262,7 @@ class DeckState internal constructor(
                 model.openTab(id)
                 return@launch
             }
+            coverFill = SnapshotEdge.bottomColor(image)?.let { Color(it) }
             cover = image.asImageBitmap()
             coverOpacity.snapTo(0f)
             coverOpacity.animateTo(1f, TabsMotion.fade.spec())

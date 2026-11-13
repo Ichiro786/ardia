@@ -215,8 +215,8 @@ private fun TabDeck(model: AppModel, state: DeckState, haptics: Haptics, geometr
                     .zIndex(OVERLAY_LAYER + 3)
                     .fillMaxSize()
                     .clearAndSetSemantics {}
-                    .background(SystemPalette.background.resolve(dark))
-                    .graphicsLayer { alpha = state.coverOpacity.value },
+                    .graphicsLayer { alpha = state.coverOpacity.value }
+                    .background(state.coverFill ?: SystemPalette.background.resolve(dark)),
                 contentScale = ContentScale.FillWidth,
                 alignment = Alignment.TopCenter,
             )
