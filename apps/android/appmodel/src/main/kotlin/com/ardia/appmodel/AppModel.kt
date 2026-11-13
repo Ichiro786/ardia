@@ -76,6 +76,7 @@ import com.ardia.sync.SyncState
 import com.ardia.sync.SyncedDevice
 import com.ardia.sync.SyncedProfile
 import java.net.URLEncoder
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -199,6 +200,8 @@ class AppModel(
     private val freshTabs = HashMap<String, VisitKind>()
     private var isActive = false
     private var appliedSearchKey: Any? = null
+    private var isOpeningStore = false
+    private var storeOpenFailed = false
 
     init {
         mirrorServices()
@@ -262,7 +265,20 @@ class AppModel(
     }
 
     private suspend fun loadStore() {
-        val loaded = environment.openStore()
+        if (isOpeningStore || store != null) return
+        isOpeningStore = true
+        val loaded = try {
+            environment.openStore()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            storeOpenFailed = true
+            toasts.show(Toast(STORE_UNAVAILABLE, ArdiaSymbols.exclamationmarkTriangleFill, Toast.LONG_DURATION_MILLIS))
+            return
+        } finally {
+            isOpeningStore = false
+        }
+        storeOpenFailed = false
         attachStore(loaded)
     }
 
@@ -335,6 +351,7 @@ class AppModel(
 
     fun sceneBecameActive() {
         isActive = true
+        if (storeOpenFailed && store == null) scope.launch { loadStore() }
         tabStore?.appBecameActive()
         sync.appForegrounded()
         applySyncedSearch()
@@ -1315,6 +1332,7 @@ class AppModel(
         fun couldNotSend(deviceName: String) = "Couldn’t Send to $deviceName"
 
         const val SAVE_FAILED = "Ardia Can’t Save Tabs and History"
+        const val STORE_UNAVAILABLE = "Ardia Can’t Open Your Tabs. Free Up Space and Reopen Ardia."
 
         fun stoppedPrivateDownloads(count: Int) = if (count == 1) "Stopped 1 Private Download" else "Stopped $count Private Downloads"
 
