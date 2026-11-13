@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             snapshotFlow { model.isPrivateOnScreen }.distinctUntilChanged().collect(::hideFromRecents)
         }
-        if (savedInstanceState == null) deliver(intent)
+        if (savedInstanceState == null && intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0) deliver(intent)
     }
 
     private val sceneObserver = LifecycleEventObserver { _, event ->

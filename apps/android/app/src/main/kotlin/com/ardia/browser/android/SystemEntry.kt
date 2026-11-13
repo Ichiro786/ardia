@@ -22,6 +22,8 @@ sealed interface SystemEntry {
     }
 
     companion object {
+        const val MAX_QUERY_CHARS = 2_000
+
         fun from(intent: Intent?): SystemEntry? {
             intent ?: return null
             return when (intent.action) {
@@ -35,7 +37,7 @@ sealed interface SystemEntry {
         fun words(text: String?): SystemEntry? {
             val trimmed = text?.trim()?.takeIf { it.isNotEmpty() } ?: return null
             if (!trimmed.contains(' ') && BrowserUrl.isWeb(trimmed)) return Link(trimmed)
-            return Search(trimmed)
+            return Search(trimmed.take(MAX_QUERY_CHARS).trim())
         }
 
         private fun link(uri: Uri): SystemEntry? {

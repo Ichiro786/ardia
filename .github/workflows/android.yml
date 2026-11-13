@@ -66,6 +66,11 @@ jobs:
             ~/.gradle/wrapper
           key: gradle-android-${{ hashFiles('apps/android/gradle/libs.versions.toml', 'apps/android/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: gradle-android-
+      - name: Sign every build with the same debug key so new APKs install over old ones
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore-v1
       - name: Build the app and every test
         working-directory: apps/android
         run: ./gradlew assembleDebug assembleDebugAndroidTest --stacktrace

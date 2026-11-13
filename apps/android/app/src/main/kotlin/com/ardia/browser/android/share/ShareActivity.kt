@@ -44,6 +44,8 @@ class ShareActivity : ComponentActivity() {
         true
     } catch (missing: ActivityNotFoundException) {
         false
+    } catch (rejected: RuntimeException) {
+        false
     }
 
     companion object {

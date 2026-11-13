@@ -13,7 +13,7 @@ android {
         applicationId = "com.ardia.browser.android"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 1
+        versionCode = providers.environmentVariable("GITHUB_RUN_NUMBER").map(String::toInt).getOrElse(1)
         versionName = "0.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments["useTestStorageService"] = "true"
