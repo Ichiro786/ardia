@@ -16,6 +16,7 @@ on:
       - "packages/sync/**"
       - "packages/core/**"
       - ".github/workflows/android.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -68,6 +69,12 @@ jobs:
       - name: Build the app and every test
         working-directory: apps/android
         run: ./gradlew assembleDebug assembleDebugAndroidTest --stacktrace
+      - name: Upload the debug APK
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: ardia-debug-apk
+          path: apps/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
       - name: Unit tests
         working-directory: apps/android
         run: ./gradlew testDebugUnitTest --stacktrace
