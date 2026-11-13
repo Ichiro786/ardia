@@ -53,6 +53,8 @@ jobs:
     if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      HAS_SIGNING_KEY: ${{ secrets.ARDIA_SIGNING_KEYSTORE != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
@@ -66,7 +68,16 @@ jobs:
             ~/.gradle/wrapper
           key: gradle-android-${{ hashFiles('apps/android/gradle/libs.versions.toml', 'apps/android/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: gradle-android-
-      - name: Sign every build with the same debug key so new APKs install over old ones
+      - name: Sign with the repository's own key so new APKs install over old ones
+        if: env.HAS_SIGNING_KEY == 'true'
+        env:
+          ARDIA_SIGNING_KEYSTORE: ${{ secrets.ARDIA_SIGNING_KEYSTORE }}
+        run: |
+          mkdir -p ~/.android
+          printf '%s' "$ARDIA_SIGNING_KEYSTORE" | base64 -d > ~/.android/debug.keystore
+          keytool -list -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey | grep -i 'fingerprint'
+      - name: Without that key, reuse one cached debug key
+        if: env.HAS_SIGNING_KEY != 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.android/debug.keystore
