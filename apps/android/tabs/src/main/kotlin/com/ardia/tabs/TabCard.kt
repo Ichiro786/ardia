@@ -14,9 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -63,6 +60,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ardia.appmodel.AppModel
+import com.ardia.design.Glass
+import com.ardia.design.GlassMenu
+import com.ardia.design.GlassMenuItem
+import com.ardia.design.GlassMenuDivider
 import com.ardia.design.ArdiaSymbols
 import com.ardia.design.ArdiaType
 import com.ardia.design.DeckHeaderMetrics
@@ -105,7 +106,7 @@ internal fun DeckCardItem(model: AppModel, state: DeckState, haptics: Haptics, t
     Box(
         Modifier
             .deckCardPlacement(state, id, index, isLast, pose, shapes, TabsPalette.cardShadow)
-            .deckCardEdge(state, id, index, frame, TabsPalette.cardEdge.resolve(dark))
+            .deckCardEdge(state, id, index, frame, TabsPalette.cardEdge.resolve(dark), lit = Glass.isLiquid)
             .clearAndSetSemantics {
                 contentDescription = title
                 stateDescription = value
@@ -126,7 +127,7 @@ internal fun DeckCardItem(model: AppModel, state: DeckState, haptics: Haptics, t
     ) {
         TabCardContent(tab, image, title, host, snapshot?.bottomFill)
         if (TabText.isUnseenReceived(tab)) ReceivedBadge(Modifier.padding(10.dp))
-        DropdownMenu(expanded = state.menuFor == id, onDismissRequest = { if (state.menuFor == id) state.menuFor = null }) {
+        GlassMenu(expanded = state.menuFor == id, onDismissRequest = { if (state.menuFor == id) state.menuFor = null }) {
             CardMenu(model, tab, dismiss = { state.menuFor = null }, close = { state.close(id, animated = true) }, copied = haptics::success)
         }
     }
@@ -371,21 +372,14 @@ internal fun CardMenu(model: AppModel, tab: BrowserTab, dismiss: () -> Unit, clo
                 model.pinToMac(tab)
             }
         }
-        HorizontalDivider()
+        GlassMenuDivider()
     }
     MenuRow(stringResource(R.string.tabs_close_tab), ArdiaSymbols.xmark, destructive = true, action = close)
 }
 
 @Composable
 internal fun MenuRow(title: String, icon: ImageVector?, destructive: Boolean = false, enabled: Boolean = true, action: () -> Unit) {
-    val dark = LocalArdiaDarkTheme.current
-    val color = if (destructive) SystemPalette.red.resolve(dark) else SystemPalette.label.resolve(dark)
-    DropdownMenuItem(
-        text = { Text(title, style = ArdiaType.body, color = color) },
-        onClick = action,
-        enabled = enabled,
-        trailingIcon = icon?.let { { Icon(it, null, Modifier.size(18.dp), tint = color) } },
-    )
+    GlassMenuItem(title, icon, destructive = destructive, enabled = enabled, onClick = action)
 }
 
 internal const val DECK_CARD_TAG = "tabs.deck.card"

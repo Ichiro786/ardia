@@ -26,9 +26,11 @@ import com.ardia.appmodel.AppModel
 import com.ardia.browser.android.system.SystemSnapshotExport
 import com.ardia.design.ArdiaTheme
 import com.ardia.design.LocalBarButtonScale
+import com.ardia.design.LocalLiquidGlass
 import com.ardia.design.LocalReduceMotion
 import com.ardia.design.Motion
 import com.ardia.design.ToastHost
+import com.ardia.store.InterfaceStyle
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 
@@ -43,7 +45,10 @@ object RootTags {
 @Composable
 fun ArdiaRoot(model: AppModel, createdAt: Long) {
     ArdiaTheme(darkTheme = isSystemInDarkTheme(), look = model.look) {
-        CompositionLocalProvider(LocalBarButtonScale provides model.settings.barButtonSize.scale) {
+        CompositionLocalProvider(
+            LocalBarButtonScale provides model.settings.barButtonSize.scale,
+            LocalLiquidGlass provides (model.settings.interfaceStyle == InterfaceStyle.GLASS),
+        ) {
             RootView(model)
         }
     }

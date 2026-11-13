@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import com.ardia.store.AppPreferences
 import com.ardia.store.AppSettings
 import com.ardia.store.BarButtonSize
+import com.ardia.store.InterfaceStyle
 import com.ardia.store.ColorChoice
 
 enum class SettingsRoute {
@@ -39,6 +40,10 @@ class SettingsModel(private val preferences: AppPreferences) {
     var barButtonSize: BarButtonSize
         get() = values.barButtonSize
         set(value) = write { preferences.setBarButtonSize(value) }
+
+    var interfaceStyle: InterfaceStyle
+        get() = values.interfaceStyle
+        set(value) = write { preferences.setInterfaceStyle(value) }
 
     var autoOpensKeyboard: Boolean
         get() = values.autoOpensKeyboard

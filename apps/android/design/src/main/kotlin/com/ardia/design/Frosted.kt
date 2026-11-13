@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
@@ -71,6 +72,7 @@ data class FrostedStyle(
     val fallback: AdaptiveColor,
     val edge: AdaptiveColor? = null,
     val edgeWidth: Dp = 0.5.dp,
+    val rim: GlassRim? = null,
 ) {
     companion object {
         val bar = FrostedStyle(
@@ -215,6 +217,7 @@ private class FrostedNode(var backdrop: FrostedBackdrop?, var shape: Shape, var 
         } else {
             drawOutline(outline, style.fallback.resolve(dark))
         }
+        style.rim?.let { drawRim(outline, it, dark) }
         style.edge?.let { drawOutline(outline, it.resolve(dark), style = Stroke(width = style.edgeWidth.toPx())) }
         drawContent()
     }
@@ -251,6 +254,28 @@ private class FrostedNode(var backdrop: FrostedBackdrop?, var shape: Shape, var 
             clipPath(path, block = block)
         }
     }
+}
+
+@Immutable
+data class GlassRim(
+    val highlight: AdaptiveColor,
+    val lowlight: AdaptiveColor,
+    val sheen: AdaptiveColor,
+    val width: Dp = 1.dp,
+)
+
+internal fun DrawScope.drawRim(outline: Outline, rim: GlassRim, dark: Boolean) {
+    val sheen = rim.sheen.resolve(dark)
+    if (sheen.alpha > 0f) {
+        drawOutline(outline, Brush.verticalGradient(0f to sheen, 0.6f to sheen.copy(alpha = 0f)))
+    }
+    val highlight = rim.highlight.resolve(dark)
+    val stroke = Brush.verticalGradient(
+        0f to highlight,
+        0.45f to highlight.copy(alpha = highlight.alpha * 0.2f),
+        1f to rim.lowlight.resolve(dark),
+    )
+    drawOutline(outline, stroke, style = Stroke(width = rim.width.toPx()))
 }
 
 @RequiresApi(Build.VERSION_CODES.S)

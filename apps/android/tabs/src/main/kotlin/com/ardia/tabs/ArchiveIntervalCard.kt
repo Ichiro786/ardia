@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +32,7 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.ardia.design.GlassMenu
 import com.ardia.design.ArdiaSymbols
 import com.ardia.design.ArdiaType
 import com.ardia.design.BrowsePalette
@@ -107,7 +107,7 @@ internal fun IntervalPicker(interval: AutoArchiveInterval, choose: (AutoArchiveI
             Text(interval.title, style = ArdiaType.body, color = SystemPalette.secondaryLabel.resolve(dark))
             Icon(ArdiaSymbols.chevronUpChevronDown, null, Modifier.size(14.dp), tint = SystemPalette.secondaryLabel.resolve(dark))
         }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        GlassMenu(expanded = open, onDismissRequest = { open = false }) {
             for (option in AutoArchiveInterval.entries) {
                 MenuRow(option.title, if (option == interval) ArdiaSymbols.checkmark else null) {
                     open = false

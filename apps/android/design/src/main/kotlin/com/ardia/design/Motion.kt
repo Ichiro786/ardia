@@ -79,4 +79,8 @@ object Motion {
     val reducedFade = ArdiaTween(200, SwiftEasing.easeInOut)
     val reducedSettle = ArdiaTween(200, SwiftEasing.easeOut)
     val logoReset = ArdiaTween(300, SwiftEasing.easeOut)
+    val glassPressIn = ArdiaSpring(response = 0.16f, dampingFraction = 0.82f)
+    val glassRelease = ArdiaSpring(response = 0.36f, dampingFraction = 0.42f)
+    val glassPop = ArdiaSpring(response = 0.38f, dampingFraction = 0.62f)
+    val glassFold = ArdiaSpring(response = 0.22f, dampingFraction = 1f)
 }

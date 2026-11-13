@@ -2,9 +2,6 @@ package com.ardia.search
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,12 +13,6 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -36,13 +27,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.onLongClick
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.ardia.appmodel.AppModel
 import com.ardia.design.ArdiaSymbols
@@ -52,16 +37,18 @@ import com.ardia.design.BrowsePalette
 import com.ardia.design.FidgetLogo
 import com.ardia.design.FrostedBackdrop
 import com.ardia.design.FrostedStyle
+import com.ardia.design.GlassCircleButton
+import com.ardia.design.GlassMenu
+import com.ardia.design.GlassMenuItem
+import com.ardia.design.GlassPlusButton
 import com.ardia.design.LocalArdiaDarkTheme
 import com.ardia.design.LocalBarButtonScale
 import com.ardia.design.LocalReduceMotion
 import com.ardia.design.Motion
 import com.ardia.design.ProfileBackdrop
 import com.ardia.design.ProfileLook
-import com.ardia.design.SystemPalette
 import com.ardia.design.TabsDeckGeometry
 import com.ardia.design.TabsLayout
-import com.ardia.design.frosted
 import com.ardia.design.frostedBackdropSource
 import com.ardia.design.rememberFrostedBackdrop
 
@@ -124,7 +111,6 @@ fun SearchHomeView(model: AppModel, modifier: Modifier = Modifier) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DeckBar(model: AppModel, frost: FrostedBackdrop, enabled: Boolean, modifier: Modifier = Modifier) {
     val density = LocalDensity.current
@@ -178,62 +164,37 @@ private fun DeckBar(model: AppModel, frost: FrostedBackdrop, enabled: Boolean, m
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PlusButton(model: AppModel, frost: FrostedBackdrop, enabled: Boolean) {
     var menuOpen by remember { mutableStateOf(false) }
     val isIncognito = model.isIncognito
-    val label = stringResource(if (isIncognito) R.string.deck_new_incognito_tab else R.string.deck_new_tab)
-    val hint = stringResource(R.string.deck_more_options)
-    val interaction = remember { MutableInteractionSource() }
-    val shape = RoundedCornerShape(50)
-    val scale = LocalBarButtonScale.current
-    Box(Modifier.height(BarButtons.rowHeight(scale)), contentAlignment = Alignment.Center) {
-        Box(
-            Modifier
-                .size(TabsLayout.barPlus * scale)
-                .frosted(frost, shape, FrostedStyle.glass)
-                .combinedClickable(
-                    interactionSource = interaction,
-                    indication = null,
-                    enabled = enabled,
-                    onLongClick = { menuOpen = true },
-                    onClick = { model.newTab() },
-                )
-                .clearAndSetSemantics {
-                    contentDescription = label
-                    role = Role.Button
-                    onClick {
-                        model.newTab()
-                        true
-                    }
-                    onLongClick(hint) {
-                        menuOpen = true
-                        true
-                    }
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(ArdiaSymbols.plus, null, Modifier.size(20.dp * scale), tint = SystemPalette.label.current)
-        }
-        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-            val canReopen = model.tabs.canReopenClosed
+    GlassPlusButton(
+        label = stringResource(if (isIncognito) R.string.deck_new_incognito_tab else R.string.deck_new_tab),
+        hint = stringResource(R.string.deck_more_options),
+        backdrop = frost,
+        classicStyle = FrostedStyle.glass,
+        iconSize = 20.dp,
+        enabled = enabled,
+        onClick = { model.newTab() },
+        onLongClick = { menuOpen = true },
+    ) {
+        GlassMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
             if (isIncognito) {
-                MenuItem(stringResource(R.string.deck_new_tab), ArdiaSymbols.plus) {
+                GlassMenuItem(stringResource(R.string.deck_new_tab), ArdiaSymbols.plus) {
                     menuOpen = false
                     model.newRegularTab()
                 }
-                MenuItem(stringResource(R.string.deck_new_incognito_tab), ArdiaSymbols.eyes) {
+                GlassMenuItem(stringResource(R.string.deck_new_incognito_tab), ArdiaSymbols.eyes) {
                     menuOpen = false
                     model.newTab()
                 }
             } else {
-                MenuItem(stringResource(R.string.deck_new_incognito_tab), ArdiaSymbols.eyes) {
+                GlassMenuItem(stringResource(R.string.deck_new_incognito_tab), ArdiaSymbols.eyes) {
                     menuOpen = false
                     model.newIncognitoTab()
                 }
-                if (canReopen) {
-                    MenuItem(stringResource(R.string.deck_reopen_closed_tab), ArdiaSymbols.arrowUturnBackward) {
+                if (model.tabs.canReopenClosed) {
+                    GlassMenuItem(stringResource(R.string.deck_reopen_closed_tab), ArdiaSymbols.arrowUturnBackward) {
                         menuOpen = false
                         model.reopenLastClosed()
                     }
@@ -244,28 +205,14 @@ private fun PlusButton(model: AppModel, frost: FrostedBackdrop, enabled: Boolean
 }
 
 @Composable
-private fun MenuItem(label: String, icon: ImageVector, onClick: () -> Unit) {
-    DropdownMenuItem(text = { Text(label) }, leadingIcon = { Icon(icon, null, Modifier.size(18.dp)) }, onClick = onClick)
-}
-
-@Composable
 private fun DeckCircleButton(symbol: ImageVector, label: String, frost: FrostedBackdrop, enabled: Boolean, onClick: () -> Unit) {
-    val interaction = remember { MutableInteractionSource() }
-    val scale = LocalBarButtonScale.current
-    val circle = TabsLayout.barCircle * scale
-    Box(
-        Modifier
-            .size(BarButtons.hitTarget(circle))
-            .combinedClickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onClick)
-            .semantics {
-                contentDescription = label
-                role = Role.Button
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(Modifier.size(circle).frosted(frost, CircleShape, FrostedStyle.glass), contentAlignment = Alignment.Center) {
-            Icon(symbol, null, Modifier.size(TabsLayout.barSymbol * scale), tint = BrowsePalette.foregroundSecondary.current)
-        }
-    }
+    GlassCircleButton(
+        symbol = symbol,
+        label = label,
+        backdrop = frost,
+        classicStyle = FrostedStyle.glass,
+        classicTint = BrowsePalette.foregroundSecondary,
+        enabled = enabled,
+        onClick = onClick,
+    )
 }
-
