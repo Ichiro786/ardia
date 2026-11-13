@@ -109,4 +109,14 @@ class TabSnapshotStoreTest {
         store.removeTabs(listOf(id))
         assertNull(store.image(name))
     }
+
+    @Test
+    fun privateTabImagesOutlastTheDiskImageCacheBudget() = runTest {
+        val store = TabSnapshotStore(directory)
+        val ids = List(12) { BrowserTab.newId() }
+        val names = ids.map { store.keepInMemory(solid(Color.RED, TabSnapshotStore.PIXEL_WIDTH, 1200), it) }
+        assertTrue(names.all { store.image(it) != null })
+        store.removeTabs(ids)
+        assertTrue(names.all { store.image(it) == null })
+    }
 }

@@ -304,7 +304,12 @@ class SyncService(
             if (!isEnabled) return
             val fetchedAt = now()
             val generation = visitGeneration.get()
-            val local = gatherLocal(fetchedAt, generation)
+            val local = try {
+                gatherLocal(fetchedAt, generation)
+            } catch (error: Exception) {
+                phase = SyncPhase.Stalled(STALLED_MESSAGE)
+                return
+            }
             val dirty = localDirty.getAndSet(false)
             try {
                 val outcome = current.cycle(local)
@@ -321,7 +326,7 @@ class SyncService(
                 restoreDirty(dirty)
             } catch (error: SyncError.StateUnreadable) {
                 restoreDirty(dirty)
-                if (startOver(current)) again = true
+                if (startedOver(current)) again = true
             } catch (error: SyncError.StateUnavailable) {
                 restoreDirty(dirty)
                 phase = SyncPhase.Stalled(UNAVAILABLE_MESSAGE)
@@ -476,6 +481,13 @@ class SyncService(
                 }
             }
         }
+    }
+
+    private fun startedOver(broken: SyncEngine): Boolean = try {
+        startOver(broken)
+    } catch (error: Exception) {
+        phase = SyncPhase.Stalled(STALLED_MESSAGE)
+        false
     }
 
     private fun startOver(broken: SyncEngine): Boolean {

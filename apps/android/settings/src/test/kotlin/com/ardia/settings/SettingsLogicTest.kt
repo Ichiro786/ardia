@@ -115,4 +115,13 @@ class SettingsLogicTest {
         val never = SyncedDevice("n", "Mac mini", SyncedDevice.MAC, null, isCurrent = false, canReceiveTabs = true)
         assertEquals(listOf("r", "o", "n", "p"), SyncDeviceWords.ordered(listOf(phone, old, never, recent)).map { it.id })
     }
+
+    @Test
+    fun cameraAccessIsCheckedAgainWhenTheScannerResumes() {
+        assertEquals(CameraAccess.Ready, CameraAccessCheck.afterResume(CameraAccess.Denied, granted = true))
+        assertEquals(CameraAccess.Denied, CameraAccessCheck.afterResume(CameraAccess.Denied, granted = false))
+        assertEquals(CameraAccess.Denied, CameraAccessCheck.afterResume(CameraAccess.Ready, granted = false))
+        assertEquals(CameraAccess.Checking, CameraAccessCheck.afterResume(CameraAccess.Checking, granted = false))
+        assertEquals(CameraAccess.Unsupported, CameraAccessCheck.afterResume(CameraAccess.Unsupported, granted = true))
+    }
 }

@@ -1,6 +1,7 @@
 package com.ardia.appmodel
 
 import android.content.Context
+import com.ardia.blocking.AndroidNetworkStatus
 import com.ardia.blocking.BlockingStore
 import com.ardia.blocking.FilterLists
 import com.ardia.blocking.HttpFilterListDownloader
@@ -73,7 +74,7 @@ class AppEnvironment(
                 openStore = { BrowserStore.open(app) },
                 makeEngine = { preferences -> DevelopmentWebViewEngine(app, preferences) },
                 makeSync = { SyncController.forApp(app) },
-                makeFilterLists = { store -> FilterLists(File(File(app.cacheDir, BLOCKING_FOLDER), "Filters"), store, HttpFilterListDownloader()) },
+                makeFilterLists = { store -> FilterLists(File(File(app.cacheDir, BLOCKING_FOLDER), "Filters"), store, HttpFilterListDownloader(AndroidNetworkStatus(app))) },
                 coreScript = { HermesCoreScript(app.assets) },
                 omniboxDirectory = BrowserStore.omniboxDirectory(app),
                 system = system,

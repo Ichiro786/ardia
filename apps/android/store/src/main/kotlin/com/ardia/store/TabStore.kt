@@ -466,6 +466,8 @@ class TabStore internal constructor(
 
     suspend fun flush(): Boolean = writer.commit()
 
+    fun flushBlocking(): Boolean = writer.commitBlocking()
+
     internal fun backdate(id: String, lastActive: Long? = null, archivedAt: Long? = null): Unit = synchronized(lock) {
         val tab = find(id) ?: return
         val next = tab.copy(lastActive = lastActive ?: tab.lastActive, archivedAt = if (tab.isArchived) archivedAt ?: tab.archivedAt else null)

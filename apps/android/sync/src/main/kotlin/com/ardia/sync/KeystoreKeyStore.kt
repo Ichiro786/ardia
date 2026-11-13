@@ -17,8 +17,8 @@ class KeystoreKeyStore(directory: File, private val alias: String = "Ardia Sync 
     override fun load(account: String): ByteArray? {
         val box = sealed.load(account) ?: return null
         if (box.size <= NONCE_BYTES) return null
-        val key = existingKey() ?: return null
         return try {
+            val key = existingKey() ?: return null
             Cipher.getInstance(TRANSFORMATION).run {
                 init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, box, 0, NONCE_BYTES))
                 updateAAD(account.toByteArray())
@@ -30,20 +30,32 @@ class KeystoreKeyStore(directory: File, private val alias: String = "Ardia Sync 
     }
 
     override fun save(secret: ByteArray, account: String): Boolean {
-        val box = try {
-            Cipher.getInstance(TRANSFORMATION).run {
-                init(Cipher.ENCRYPT_MODE, existingKey() ?: createKey())
-                updateAAD(account.toByteArray())
-                val body = doFinal(secret)
-                iv + body
-            }
-        } catch (error: Exception) {
-            return false
-        }
+        val box = sealWithCurrentKey(secret, account) ?: sealWithFreshKey(secret, account) ?: return false
         return sealed.save(box, account)
     }
 
     override fun delete(account: String) = sealed.delete(account)
+
+    private fun sealWithCurrentKey(secret: ByteArray, account: String): ByteArray? = try {
+        seal(secret, account, existingKey() ?: createKey())
+    } catch (error: Exception) {
+        null
+    }
+
+    private fun sealWithFreshKey(secret: ByteArray, account: String): ByteArray? = try {
+        runCatching { keyStore().deleteEntry(alias) }
+        seal(secret, account, createKey())
+    } catch (error: Exception) {
+        null
+    }
+
+    private fun seal(secret: ByteArray, account: String, key: SecretKey): ByteArray =
+        Cipher.getInstance(TRANSFORMATION).run {
+            init(Cipher.ENCRYPT_MODE, key)
+            updateAAD(account.toByteArray())
+            val body = doFinal(secret)
+            iv + body
+        }
 
     private fun keyStore(): KeyStore = KeyStore.getInstance(PROVIDER).apply { load(null) }
 

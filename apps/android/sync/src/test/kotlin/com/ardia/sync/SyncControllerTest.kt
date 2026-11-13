@@ -399,4 +399,21 @@ class SyncControllerTest {
     }
 
     private fun withTimeoutBlocking(block: suspend () -> Unit) = runBlocking { withTimeout(10_000) { block() } }
+
+    @Test
+    fun aCycleThatThrowsStillPublishesAndKeepsTheLoopRunning() {
+        val h = launched()
+        val before = h.device.syncs
+        val stalled = SyncPhase.Stalled("broken")
+        h.device.duringSync = {
+            h.device.phase = stalled
+            throw IllegalStateException("broken")
+        }
+        h.timers.advance(15_000)
+        assertEquals(before + 1, h.device.syncs)
+        assertEquals(stalled, h.controller.state.value.phase)
+        assertFalse(h.controller.state.value.isSyncing)
+        h.timers.advance(15_000)
+        assertEquals(before + 2, h.device.syncs)
+    }
 }

@@ -72,12 +72,22 @@ import com.ardia.design.SystemPalette
 import com.ardia.design.medium
 import com.ardia.design.monospacedDigits
 import com.ardia.design.rememberSettingsHeroHidden
+import com.ardia.sync.ConnectResult
 import com.ardia.sync.PhraseFooter
 import com.ardia.sync.SyncJoin
 import com.ardia.sync.SyncPhase
 import com.ardia.sync.SyncStatusWords
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+private suspend fun <T> attemptSync(work: suspend () -> T): Result<T> = try {
+    Result.success(work())
+} catch (cancelled: CancellationException) {
+    throw cancelled
+} catch (error: Exception) {
+    Result.failure(error)
+}
 
 @Composable
 private fun rememberIsSetupRoot(nav: SettingsNav): Boolean = remember { nav.closesAtRoot && nav.stack.isAtRoot }
@@ -104,16 +114,22 @@ fun SyncSettingsPage(nav: SettingsNav) {
     var stopping by remember { mutableStateOf(false) }
     var folderError by remember { mutableStateOf<String?>(null) }
     val pickFolder = rememberFolderPicker(stringResource(R.string.sync_default_folder)) { picked ->
-        scope.launch { folderError = model.changeSyncFolder(picked.pick).message }
+        scope.launch {
+            folderError = attemptSync { model.changeSyncFolder(picked.pick) }.getOrDefault(ConnectResult.FolderUnavailable).message
+        }
     }
     val syncNow: () -> Unit = {
         if (!syncing) {
             syncing = true
             scope.launch {
-                model.syncNow()
-                syncing = false
+                val outcome = try {
+                    attemptSync { model.syncNow() }
+                } finally {
+                    syncing = false
+                }
                 val phase = model.syncState.phase
                 when {
+                    outcome.isFailure -> haptics.performHapticFeedback(HapticFeedbackType.Reject)
                     phase == SyncPhase.Updated -> haptics.performHapticFeedback(HapticFeedbackType.Confirm)
                     phase is SyncPhase.Stalled || phase == SyncPhase.Offline || phase == SyncPhase.NeedsFolderAccess || phase == SyncPhase.Locked || phase == SyncPhase.Reset ->
                         haptics.performHapticFeedback(HapticFeedbackType.Reject)
@@ -138,8 +154,11 @@ fun SyncSettingsPage(nav: SettingsNav) {
                     if (!state.isEnabled) return@PullToRefreshBox
                     refreshing = true
                     scope.launch {
-                        model.syncNow()
-                        refreshing = false
+                        try {
+                            attemptSync { model.syncNow() }
+                        } finally {
+                            refreshing = false
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxSize(),
@@ -199,8 +218,11 @@ fun SyncSettingsPage(nav: SettingsNav) {
                 haptics.performHapticFeedback(HapticFeedbackType.Reject)
                 stopping = true
                 scope.launch {
-                    model.stopSyncing()
-                    stopping = false
+                    try {
+                        attemptSync { model.stopSyncing() }
+                    } finally {
+                        stopping = false
+                    }
                 }
             },
             onDismiss = { confirmingStop = false },
@@ -253,8 +275,7 @@ private fun LazyListScope.attentionSection(attention: SyncStatusWords.Attention,
                     stringResource(R.string.sync_connect_again), null, Palette.formAccent.current,
                     onClick = {
                         scope.launch {
-                            nav.model.acknowledgeSyncReset()
-                            nav.push(SettingsRoute.Connect)
+                            if (attemptSync { nav.model.acknowledgeSyncReset() }.isSuccess) nav.push(SettingsRoute.Connect)
                         }
                     },
                     tag = "connectAgain",

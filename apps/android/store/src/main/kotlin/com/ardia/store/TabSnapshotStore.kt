@@ -8,17 +8,24 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class TabSnapshotStore(
     val directory: File,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
-    private val cache = LruCache<String, Bitmap>(CACHE_LIMIT)
+    private val cache = object : LruCache<String, Bitmap>(CACHE_BYTES) {
+        override fun sizeOf(key: String, value: Bitmap): Int = value.allocationByteCount
+    }
+    private val memoryOnly = ConcurrentHashMap<String, Bitmap>()
     private val deletedTabIds: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    private val cleanup = CoroutineScope(SupervisorJob() + ioDispatcher)
 
-    fun fileName(tabId: String): String = "$tabId.jpg"
+    fun fileName(tabId: String): String = "$tabId$FILE_SUFFIX"
 
     suspend fun save(image: Bitmap, tabId: String): String? {
         val name = fileName(tabId)
@@ -46,27 +53,37 @@ class TabSnapshotStore(
 
     fun keepInMemory(image: Bitmap, tabId: String): String {
         val name = "$MEMORY_PREFIX$tabId"
-        cache.put(name, downscale(image, PIXEL_WIDTH))
+        memoryOnly[name] = downscale(image, PIXEL_WIDTH)
         return name
     }
 
     suspend fun image(name: String): Bitmap? {
+        if (name.startsWith(MEMORY_PREFIX)) return memoryOnly[name]
         cache.get(name)?.let { return it }
-        if (name.startsWith(MEMORY_PREFIX)) return null
+        if (name.removeSuffix(FILE_SUFFIX) in deletedTabIds) return null
         val image = withContext(ioDispatcher) { BitmapFactory.decodeFile(File(directory, name).path) } ?: return null
+        if (name.removeSuffix(FILE_SUFFIX) in deletedTabIds) return null
         cache.put(name, image)
         return image
     }
 
     fun removeTabs(tabIds: Collection<String>) {
         deletedTabIds.addAll(tabIds)
-        remove(tabIds.flatMap { listOf(fileName(it), "$MEMORY_PREFIX$it") })
+        val names = tabIds.flatMap { listOf(fileName(it), "$MEMORY_PREFIX$it") }
+        forget(names)
+        val files = tabIds.map { File(directory, fileName(it)) }
+        cleanup.launch { files.forEach(File::delete) }
     }
 
     fun remove(names: Collection<String>) {
+        forget(names)
+        for (name in names) File(directory, name).delete()
+    }
+
+    private fun forget(names: Collection<String>) {
         for (name in names) {
+            memoryOnly.remove(name)
             cache.remove(name)
-            File(directory, name).delete()
         }
     }
 
@@ -74,8 +91,9 @@ class TabSnapshotStore(
         const val POINT_WIDTH = 390.0
         const val PIXEL_WIDTH = 600
         const val JPEG_QUALITY = 72
-        const val CACHE_LIMIT = 40
+        const val CACHE_BYTES = 32 * 1024 * 1024
         private const val MEMORY_PREFIX = "memory-"
+        private const val FILE_SUFFIX = ".jpg"
 
         internal fun encode(image: Bitmap, file: File, directory: File): Bitmap? {
             val scaled = downscale(image, PIXEL_WIDTH)

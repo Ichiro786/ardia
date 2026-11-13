@@ -307,11 +307,11 @@ class SyncController(
                 cycling = false
                 updatingShown = false
             }
+            if (current.isEnabled) rescheduleLoop() else stopLoop()
+            runCatching { announce(current.takeReceived()) }
+            runCatching { publish() }
+            runCatching { updateBackground() }
         }
-        announce(current.takeReceived())
-        publish()
-        if (current.isEnabled) rescheduleLoop() else stopLoop()
-        updateBackground()
     }
 
     private fun requestCycle() {
