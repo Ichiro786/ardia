@@ -272,7 +272,11 @@ class DeckState internal constructor(
 
     fun close(id: String, animated: Boolean) {
         val index = order.indexOf(id)
-        if (index < 0) return
+        if (index < 0) {
+            if (draggedLiftId == id) draggedLiftId = null
+            forget(id)
+            return
+        }
         hideArchiveCard()
         menuFor = null
         if (!animated || reduceMotion) {
@@ -433,9 +437,12 @@ class DeckState internal constructor(
                 val motion = motion(card)
                 draggedLiftId = null
                 scope.launch(start = CoroutineStart.UNDISPATCHED) {
-                    motion.lift.snapTo(start)
-                    motion.lift.animateTo(0f, TabsMotion.release.spec())
-                    lifting = lifting - card
+                    try {
+                        motion.lift.snapTo(start)
+                        motion.lift.animateTo(0f, TabsMotion.release.spec())
+                    } finally {
+                        if (motion.vanish.targetValue == 0f) lifting = lifting - card
+                    }
                 }
             }
             return

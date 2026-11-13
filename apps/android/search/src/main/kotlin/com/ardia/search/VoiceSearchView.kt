@@ -76,6 +76,7 @@ import com.ardia.design.FrostedBackdrop
 import com.ardia.design.FrostedStyle
 import com.ardia.design.LocalArdiaDarkTheme
 import com.ardia.design.LocalReduceMotion
+import com.ardia.design.Motion
 import com.ardia.design.ProfileBackdrop
 import com.ardia.design.Spacing
 import com.ardia.design.SwiftEasing
@@ -218,45 +219,61 @@ private fun LevelLogo(dictation: DictationSession) {
 
 @Composable
 private fun Transcript(dictation: DictationSession, context: Context) {
-    when (val state = dictation.state) {
-        DictationSession.State.Denied -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
-            Text(stringResource(R.string.voice_permission_title), style = ArdiaType.title3.semibold, color = Color.White, textAlign = TextAlign.Center)
-            Text(
-                stringResource(R.string.voice_permission_detail),
-                style = ArdiaType.subheadline,
-                color = Color.White.copy(alpha = 0.8f),
+    val reduceMotion = LocalReduceMotion.current
+    val fade = if (reduceMotion) Motion.reducedFade else Motion.surfaceFade
+    AnimatedContent(
+        targetState = dictation.state,
+        contentKey = { transcriptPhase(it) },
+        contentAlignment = Alignment.Center,
+        transitionSpec = { fadeIn(fade.spec()) togetherWith fadeOut(fade.spec()) },
+        label = "transcriptPhase",
+    ) { state ->
+        when (state) {
+            DictationSession.State.Denied -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
+                Text(stringResource(R.string.voice_permission_title), style = ArdiaType.title3.semibold, color = Color.White, textAlign = TextAlign.Center)
+                Text(
+                    stringResource(R.string.voice_permission_detail),
+                    style = ArdiaType.subheadline,
+                    color = Color.White.copy(alpha = 0.8f),
+                    textAlign = TextAlign.Center,
+                )
+                GlassPill(text = stringResource(R.string.voice_open_settings), icon = null, frost = null, modifier = Modifier.padding(top = Spacing.tight)) {
+                    context.openAppSettings()
+                }
+            }
+            is DictationSession.State.Unavailable -> Text(
+                stringResource(problemText(state.problem)),
+                style = ArdiaType.title3.semibold,
+                color = Color.White,
                 textAlign = TextAlign.Center,
             )
-            GlassPill(text = stringResource(R.string.voice_open_settings), icon = null, frost = null, modifier = Modifier.padding(top = Spacing.tight)) {
-                context.openAppSettings()
-            }
-        }
-        is DictationSession.State.Unavailable -> Text(
-            stringResource(problemText(state.problem)),
-            style = ArdiaType.title3.semibold,
-            color = Color.White,
-            textAlign = TextAlign.Center,
-        )
-        else -> {
-            val transcript = dictation.transcript
-            AnimatedContent(
-                targetState = transcript,
-                transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(150)) },
-                label = "transcript",
-            ) { shown ->
-                Text(
-                    shown.ifEmpty { stringResource(R.string.voice_listening) },
-                    style = ArdiaType.title2.semibold,
-                    color = Color.White.copy(alpha = if (shown.isEmpty()) 0.7f else 1f),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.18f), RoundedCornerShape(22.dp))
-                        .padding(horizontal = Spacing.medium, vertical = Spacing.small)
-                        .semantics { liveRegion = LiveRegionMode.Polite },
-                )
+            else -> {
+                val transcript = dictation.transcript
+                AnimatedContent(
+                    targetState = transcript,
+                    transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(150)) },
+                    label = "transcript",
+                ) { shown ->
+                    Text(
+                        shown.ifEmpty { stringResource(R.string.voice_listening) },
+                        style = ArdiaType.title2.semibold,
+                        color = Color.White.copy(alpha = if (shown.isEmpty()) 0.7f else 1f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.18f), RoundedCornerShape(22.dp))
+                            .padding(horizontal = Spacing.medium, vertical = Spacing.small)
+                            .semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                }
             }
         }
     }
+}
+
+private fun transcriptPhase(state: DictationSession.State): Any = when (state) {
+    DictationSession.State.Denied -> state
+    is DictationSession.State.Unavailable -> state
+    else -> DictationSession.State.Listening
 }
 
 private fun problemText(problem: DictationProblem): Int = when (problem) {
@@ -268,11 +285,17 @@ private fun problemText(problem: DictationProblem): Int = when (problem) {
 @Composable
 private fun Waveform(dictation: DictationSession, levels: LevelHistory) {
     val listening = dictation.state == DictationSession.State.Listening
+    val reduceMotion = LocalReduceMotion.current
+    val shown = animateFloatAsState(
+        targetValue = if (listening) 1f else 0f,
+        animationSpec = (if (reduceMotion) Motion.reducedFade else Motion.surfaceFade).spec(),
+        label = "waveformAlpha",
+    )
     Canvas(
         Modifier
             .fillMaxWidth()
             .height(48.dp)
-            .graphicsLayer { alpha = if (listening) 1f else 0f }
+            .graphicsLayer { alpha = shown.value }
             .semantics { invisibleToUser() },
     ) {
         levels.version
@@ -293,14 +316,32 @@ private fun Waveform(dictation: DictationSession, levels: LevelHistory) {
 private fun Controls(dictation: DictationSession, frost: FrostedBackdrop, onTryAgain: () -> Unit, onSearch: (String) -> Unit) {
     val text = dictation.transcript.trim()
     val state = dictation.state
+    val phase = when {
+        state == DictationSession.State.Listening -> ControlsPhase.Done
+        text.isNotEmpty() -> ControlsPhase.Search
+        state != DictationSession.State.Requesting -> ControlsPhase.TryAgain
+        else -> ControlsPhase.None
+    }
+    val reduceMotion = LocalReduceMotion.current
+    val fade = if (reduceMotion) Motion.reducedFade else Motion.surfaceFade
     Box(Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
-        when {
-            state == DictationSession.State.Listening -> GlassPill(stringResource(R.string.voice_done), ArdiaSymbols.stopFill, frost) { dictation.stop() }
-            text.isNotEmpty() -> GlassPill(stringResource(R.string.voice_search), null, frost) { onSearch(text) }
-            state != DictationSession.State.Requesting -> GlassPill(stringResource(R.string.voice_try_again), ArdiaSymbols.micFill, frost, onClick = onTryAgain)
+        AnimatedContent(
+            targetState = phase,
+            modifier = Modifier.fillMaxWidth(),
+            transitionSpec = { fadeIn(fade.spec()) togetherWith fadeOut(fade.spec()) },
+            label = "voiceControls",
+        ) { shownPhase ->
+            when (shownPhase) {
+                ControlsPhase.Done -> GlassPill(stringResource(R.string.voice_done), ArdiaSymbols.stopFill, frost) { dictation.stop() }
+                ControlsPhase.Search -> GlassPill(stringResource(R.string.voice_search), null, frost) { onSearch(dictation.transcript.trim()) }
+                ControlsPhase.TryAgain -> GlassPill(stringResource(R.string.voice_try_again), ArdiaSymbols.micFill, frost, onClick = onTryAgain)
+                ControlsPhase.None -> Box(Modifier.fillMaxWidth())
+            }
         }
     }
 }
+
+private enum class ControlsPhase { Done, Search, TryAgain, None }
 
 @Composable
 private fun GlassPill(text: String, icon: ImageVector?, frost: FrostedBackdrop?, modifier: Modifier = Modifier, onClick: () -> Unit) {

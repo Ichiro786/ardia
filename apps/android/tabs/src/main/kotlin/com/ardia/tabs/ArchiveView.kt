@@ -2,6 +2,11 @@ package com.ardia.tabs
 
 import android.text.format.DateFormat
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,6 +30,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -59,6 +65,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.ardia.appmodel.AppModel
 import com.ardia.design.ArdiaSymbols
@@ -67,6 +74,8 @@ import com.ardia.design.BrowsePalette
 import com.ardia.design.FaviconImage
 import com.ardia.design.LocalArdiaDarkTheme
 import com.ardia.design.LocalProfileLook
+import com.ardia.design.LocalReduceMotion
+import com.ardia.design.Motion
 import com.ardia.design.Palette
 import com.ardia.design.Spacing
 import com.ardia.design.SystemPalette
@@ -131,14 +140,48 @@ private fun ArchiveContent(model: AppModel, query: String, onQuery: (String) -> 
         )
         ArchiveSearchField(query, onChange = onQuery)
         val days = model.archive
-        Box(Modifier.fillMaxSize()) {
-            when {
-                days.isEmpty() -> if (model.archiveLoaded) ArchiveEmptyState(Modifier.align(Alignment.Center))
-                trimmed.isNotEmpty() -> ArchiveResults(model, trimmed, haptics)
-                else -> ArchiveDays(model, haptics)
+        val pane = when {
+            days.isEmpty() -> if (model.archiveLoaded) ArchivePane.Empty else ArchivePane.Loading
+            trimmed.isNotEmpty() -> ArchivePane.Results(trimmed)
+            else -> ArchivePane.Days
+        }
+        val fade = if (LocalReduceMotion.current) Motion.reducedFade else Motion.surfaceFade
+        AnimatedContent(
+            targetState = pane,
+            contentKey = { it::class },
+            transitionSpec = { fadeIn(fade.spec()) togetherWith fadeOut(fade.spec()) },
+            modifier = Modifier.fillMaxSize(),
+            label = "archivePane",
+        ) { shownPane ->
+            Box(Modifier.fillMaxSize()) {
+                when (shownPane) {
+                    ArchivePane.Loading -> Unit
+                    ArchivePane.Empty -> ArchiveEmptyState(Modifier.align(Alignment.Center))
+                    is ArchivePane.Results -> ArchiveResults(model, shownPane.query, haptics)
+                    ArchivePane.Days -> ArchiveDays(model, haptics)
+                }
             }
         }
     }
+}
+
+private sealed interface ArchivePane {
+    data object Loading : ArchivePane
+
+    data object Empty : ArchivePane
+
+    data object Days : ArchivePane
+
+    data class Results(val query: String) : ArchivePane
+}
+
+internal fun LazyItemScope.listItemMotion(reduceMotion: Boolean): Modifier {
+    val fade = if (reduceMotion) Motion.reducedFade else Motion.surfaceFade
+    return Modifier.animateItem(
+        fadeInSpec = fade.spec(),
+        placementSpec = if (reduceMotion) null else Motion.snappy.spec(IntOffset.VisibilityThreshold),
+        fadeOutSpec = fade.spec(),
+    )
 }
 
 @Composable
@@ -227,13 +270,14 @@ private fun ArchiveSearchField(query: String, onChange: (String) -> Unit) {
 private fun ArchiveDays(model: AppModel, haptics: Haptics) {
     val days = model.archive
     val today = remember { LocalDate.now() }
+    val reduceMotion = LocalReduceMotion.current
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues(),
     ) {
         for (day in days) {
             stickyHeader(key = "day:${day.day}") { ArchiveDayHeader(day.day, today) }
-            items(day.tabs, key = { it.id }) { tab -> ArchiveRowItem(model, tab, haptics) }
+            items(day.tabs, key = { it.id }) { tab -> ArchiveRowItem(model, tab, haptics, listItemMotion(reduceMotion)) }
         }
     }
 }
@@ -251,8 +295,9 @@ private fun ArchiveResults(model: AppModel, query: String, haptics: Haptics) {
         ArchiveNoResults(query)
         return
     }
+    val reduceMotion = LocalReduceMotion.current
     LazyColumn(Modifier.fillMaxSize(), contentPadding = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues()) {
-        items(found, key = { it.id }) { tab -> ArchiveRowItem(model, tab, haptics) }
+        items(found, key = { it.id }) { tab -> ArchiveRowItem(model, tab, haptics, listItemMotion(reduceMotion)) }
     }
 }
 
@@ -281,7 +326,7 @@ private fun ArchiveDayHeader(day: LocalDate, today: LocalDate) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ArchiveRowItem(model: AppModel, tab: BrowserTab, haptics: Haptics) {
+private fun ArchiveRowItem(model: AppModel, tab: BrowserTab, haptics: Haptics, modifier: Modifier = Modifier) {
     val dark = LocalArdiaDarkTheme.current
     var menu by remember { mutableStateOf(false) }
     val restore = {
@@ -293,6 +338,7 @@ private fun ArchiveRowItem(model: AppModel, tab: BrowserTab, haptics: Haptics) {
     val hint = stringResource(R.string.archive_row_hint)
     SwipeToDismissBox(
         state = swipe,
+        modifier = modifier,
         enableDismissFromStartToEnd = false,
         onDismiss = { value -> if (value == SwipeToDismissBoxValue.EndToStart) delete() },
         backgroundContent = {

@@ -2,6 +2,7 @@ package com.ardia.search
 
 import android.content.Context
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -27,6 +28,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,6 +69,7 @@ import com.ardia.design.BrowseLayout
 import com.ardia.design.BrowsePalette
 import com.ardia.design.LocalArdiaDarkTheme
 import com.ardia.design.LocalProfileLook
+import com.ardia.design.LocalReduceMotion
 import com.ardia.design.Motion
 import com.ardia.design.Spacing
 import com.ardia.design.semibold
@@ -112,13 +115,20 @@ private class TrayController(
     }
 
     fun submit(value: String) {
+        if (isSubmitting) return
+        isSubmitting = true
         val current = suggestions
         scope.launch {
-            val resolution = current?.resolve(value)
-            if (resolution == null && SearchInput.resolve(value) == null) return@launch
-            isSubmitting = true
-            leave()
-            model.submitSearch(value, resolution)
+            var isLeaving = false
+            try {
+                val resolution = current?.resolve(value)
+                if (resolution == null && SearchInput.resolve(value) == null) return@launch
+                isLeaving = true
+                leave()
+                model.submitSearch(value, resolution)
+            } finally {
+                if (!isLeaving) isSubmitting = false
+            }
         }
     }
 
@@ -230,7 +240,12 @@ private fun TrayPanel(
     }
 
     val look = LocalProfileLook.current
-    val surface = if (isIncognito) BrowsePalette.incognitoSheet else look.surface.current
+    val reduceMotion = LocalReduceMotion.current
+    val surface = animateColorAsState(
+        targetValue = if (isIncognito) BrowsePalette.incognitoSheet else look.surface.current,
+        animationSpec = (if (reduceMotion) Motion.reducedFade else Motion.barTone).spec(),
+        label = "traySurface",
+    )
     val radius = BrowseLayout.sheetTopRadius
     val shape = remember { RoundedCornerShape(topStart = radius, topEnd = radius) }
     Column(
@@ -248,7 +263,7 @@ private fun TrayPanel(
                 val path = Path().apply {
                     addRoundRect(RoundRect(0f, 0f, size.width, extended, CornerRadius(corner, corner), CornerRadius(corner, corner), CornerRadius.Zero, CornerRadius.Zero))
                 }
-                onDrawBehind { drawPath(path, surface) }
+                onDrawBehind { drawPath(path, surface.value) }
             },
     ) {
         TrayHeader(model, controller, isIncognito, dismissDrag)
@@ -365,7 +380,8 @@ private fun TrayBody(
 ) {
     val field = controller.field
     val fieldEmpty by remember(field) { derivedStateOf { field.value.text.isEmpty() } }
-    val rows by remember(suggestions) { derivedStateOf { TrayRows.build(suggestions.rows, suggestions.text, paste) } }
+    val currentPaste by rememberUpdatedState(paste)
+    val rows by remember(suggestions) { derivedStateOf { TrayRows.build(suggestions.rows, suggestions.text, currentPaste) } }
     val hasRows by remember(suggestions) { derivedStateOf { rows.isNotEmpty() } }
     val mode = when {
         isIncognito && fieldEmpty -> BodyMode.Caption

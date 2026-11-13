@@ -337,8 +337,8 @@ private fun SuggestionRow(
                 }
             }
         }
-        if (isMenuOpen && suggestion != null) {
-            DropdownMenu(expanded = true, onDismissRequest = onDismissMenu) {
+        if (suggestion != null) {
+            DropdownMenu(expanded = isMenuOpen, onDismissRequest = onDismissMenu) {
                 for (item in remember(suggestion, actions) { actions.menu(suggestion) }) {
                     DropdownMenuItem(
                         text = { Text(item.label) },

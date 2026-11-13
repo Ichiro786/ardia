@@ -2,12 +2,14 @@ package com.ardia.browser.android
 
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -175,7 +177,15 @@ fun <T : Any> SheetHost(
                         throw cancelled
                     }
                 }
-                content(current)
+                val sheetFade = if (reduceMotion) Motion.reducedFade else Motion.surfaceFade
+                AnimatedContent(
+                    targetState = current,
+                    transitionSpec = { fadeIn(sheetFade.spec()) togetherWith fadeOut(sheetFade.spec()) },
+                    modifier = Modifier.fillMaxSize(),
+                    label = "sheetContent",
+                ) { shownSheet ->
+                    content(shownSheet)
+                }
             }
         }
     }

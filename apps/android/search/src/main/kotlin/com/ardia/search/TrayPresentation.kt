@@ -24,8 +24,10 @@ internal class KeyboardReader(
     private val source: WindowInsets,
     private val target: WindowInsets,
     private val navigation: WindowInsets,
-    private val density: Density,
+    density: Density,
 ) {
+    var density: Density by mutableStateOf(density)
+
     fun current(): Float = ime.getBottom(density) / density.density
 
     fun target(): Float = target.getBottom(density) / density.density

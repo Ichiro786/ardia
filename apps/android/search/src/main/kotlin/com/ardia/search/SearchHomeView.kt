@@ -1,5 +1,6 @@
 package com.ardia.search
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -82,10 +83,16 @@ fun SearchHomeView(model: AppModel, modifier: Modifier = Modifier) {
         val frost = rememberFrostedBackdrop()
         Box(modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().frostedBackdropSource(frost)) {
-                if (isIncognito) {
-                    ProfileBackdrop(Modifier.fillMaxSize(), look = ProfileLook.incognito)
-                } else {
-                    ProfileBackdrop(Modifier.fillMaxSize(), themed = true)
+                Crossfade(
+                    targetState = isIncognito,
+                    animationSpec = (if (reduceMotion) Motion.reducedFade else Motion.surfaceSwap).spec(),
+                    label = "homeBackdrop",
+                ) { incognito ->
+                    if (incognito) {
+                        ProfileBackdrop(Modifier.fillMaxSize(), look = ProfileLook.incognito)
+                    } else {
+                        ProfileBackdrop(Modifier.fillMaxSize(), themed = true)
+                    }
                 }
             }
             val hidden = if (isTrayUp) Modifier.clearAndSetSemantics {} else Modifier

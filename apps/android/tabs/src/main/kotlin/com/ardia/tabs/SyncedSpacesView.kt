@@ -1,6 +1,7 @@
 package com.ardia.tabs
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -131,30 +132,39 @@ fun SyncedSpacesView(model: AppModel, modifier: Modifier = Modifier) {
             close = { model.sheet = null },
         )
         SyncStatusBanner(model.syncState.phase, model.syncState.statusText) { model.sheet = AppModel.Sheet.Settings }
-        if (profiles.isEmpty()) {
-            val isOff = model.syncState.phase == SyncPhase.Off
-            SpacesUnavailable(isOff, Modifier.weight(1f)) {
-                model.sheet = if (isOff) AppModel.Sheet.SyncSetup else AppModel.Sheet.Settings
-            }
-            return@Column
-        }
-        val initialPage = profiles.indexOfFirst { it.syncId == selection }.coerceAtLeast(0)
-        val pager = rememberPagerState(initialPage = initialPage) { profiles.size }
-        LaunchedEffect(pager, profiles) {
-            snapshotFlow { pager.settledPage }.distinctUntilChanged().collect { page ->
-                val id = profiles.getOrNull(page)?.syncId ?: return@collect
-                if (id == selection) return@collect
-                selection = id
-                haptics.selection()
-                if (id != model.tabStore?.profileSyncId) model.switchProfile(id)
-            }
-        }
-        HorizontalPager(pager, Modifier.weight(1f), key = { profiles[it].syncId }) { page ->
-            SpacePage(model, profiles[page])
-        }
-        if (profiles.size > 1) {
-            SpaceSwitcher(profiles, pager.currentPage) { index ->
-                scope.launch { if (reduceMotion) pager.scrollToPage(index) else pager.animateScrollToPage(index) }
+        Crossfade(
+            targetState = profiles.isEmpty(),
+            animationSpec = (if (reduceMotion) Motion.reducedFade else Motion.surfaceFade).spec(),
+            modifier = Modifier.weight(1f),
+            label = "spacesContent",
+        ) { isUnavailable ->
+            if (isUnavailable) {
+                val isOff = model.syncState.phase == SyncPhase.Off
+                SpacesUnavailable(isOff, Modifier.fillMaxSize()) {
+                    model.sheet = if (isOff) AppModel.Sheet.SyncSetup else AppModel.Sheet.Settings
+                }
+            } else {
+                Column(Modifier.fillMaxSize()) {
+                    val initialPage = profiles.indexOfFirst { it.syncId == selection }.coerceAtLeast(0)
+                    val pager = rememberPagerState(initialPage = initialPage) { profiles.size }
+                    LaunchedEffect(pager, profiles) {
+                        snapshotFlow { pager.settledPage }.distinctUntilChanged().collect { page ->
+                            val id = profiles.getOrNull(page)?.syncId ?: return@collect
+                            if (id == selection) return@collect
+                            selection = id
+                            haptics.selection()
+                            if (id != model.tabStore?.profileSyncId) model.switchProfile(id)
+                        }
+                    }
+                    HorizontalPager(pager, Modifier.weight(1f), key = { profiles[it].syncId }) { page ->
+                        SpacePage(model, profiles[page])
+                    }
+                    if (profiles.size > 1) {
+                        SpaceSwitcher(profiles, pager.currentPage) { index ->
+                            scope.launch { if (reduceMotion) pager.scrollToPage(index) else pager.animateScrollToPage(index) }
+                        }
+                    }
+                }
             }
         }
     }
@@ -206,6 +216,7 @@ private fun HeaderButton(symbol: ImageVector, label: String, action: () -> Unit)
 @Composable
 private fun SpacePage(model: AppModel, profile: SyncedProfile) {
     val scope = rememberCoroutineScope()
+    val reduceMotion = LocalReduceMotion.current
     var refreshing by remember { mutableStateOf(false) }
     var expandedDevices by rememberSaveable(profile.syncId) { mutableStateOf(emptySet<String>()) }
     var expandedGroups by rememberSaveable(profile.syncId) { mutableStateOf(emptySet<String>()) }
@@ -232,13 +243,13 @@ private fun SpacePage(model: AppModel, profile: SyncedProfile) {
                     PinnedTileGrid(profile.pinned.tiles, links::open, Modifier.padding(start = Spacing.medium, end = Spacing.medium, top = Spacing.tight, bottom = Spacing.small))
                 }
             }
-            pinnedSections(profile.pinned.sections, depth = 0, expanded = expandedGroups, toggle = toggle, links = links)
+            pinnedSections(profile.pinned.sections, depth = 0, expanded = expandedGroups, toggle = toggle, links = links, reduceMotion = reduceMotion)
             if (profile.bookmarks.isNotEmpty()) {
                 item(key = "bookmarks-header") { SectionHeader(stringResource(R.string.spaces_bookmarks), ArdiaSymbols.star) }
-                bookmarks(profile.bookmarks, depth = 0, expanded = expandedGroups, toggle = toggle, links = links)
+                bookmarks(profile.bookmarks, depth = 0, expanded = expandedGroups, toggle = toggle, links = links, reduceMotion = reduceMotion)
             }
             for (device in devices) {
-                deviceSection(device, device.deviceId in expandedDevices, links) { expandedDevices = expandedDevices + device.deviceId }
+                deviceSection(device, device.deviceId in expandedDevices, links, reduceMotion) { expandedDevices = expandedDevices + device.deviceId }
             }
             if (profile.pinned.isEmpty && devices.isEmpty() && profile.bookmarks.isEmpty()) {
                 item(key = "empty") { NothingHereYet(profile.name) }
@@ -253,19 +264,20 @@ private fun LazyListScope.pinnedSections(
     expanded: Set<String>,
     toggle: (String) -> Unit,
     links: RemoteLinks,
+    reduceMotion: Boolean,
 ) {
     for (section in sections) {
         val tab = section.tab
         val group = section.group
         when {
-            tab != null -> item(key = "pinned:${section.id}:$depth") {
+            tab != null -> animatedItem("pinned:${section.id}:$depth", reduceMotion) {
                 RemoteRow(tab.title, tab.url, depth, links, SpaceColors.symbol(tab.icon))
             }
             group != null -> {
                 val key = "group:${group.key}"
                 val isOpen = key in expanded
-                item(key = key) { GroupRow(group, depth, isOpen) { toggle(key) } }
-                if (isOpen) pinnedSections(group.items, depth + 1, expanded, toggle, links)
+                animatedItem(key, reduceMotion) { GroupRow(group, depth, isOpen) { toggle(key) } }
+                if (isOpen) pinnedSections(group.items, depth + 1, expanded, toggle, links, reduceMotion)
             }
         }
     }
@@ -277,28 +289,37 @@ private fun LazyListScope.bookmarks(
     expanded: Set<String>,
     toggle: (String) -> Unit,
     links: RemoteLinks,
+    reduceMotion: Boolean,
 ) {
     for (bookmark in items) {
         val url = bookmark.url
         if (url != null) {
-            item(key = "bookmark:${bookmark.key}") { RemoteRow(bookmark.title, url, depth, links) }
+            animatedItem("bookmark:${bookmark.key}", reduceMotion) { RemoteRow(bookmark.title, url, depth, links) }
             continue
         }
         val key = "folder:${bookmark.key}"
         val isOpen = key in expanded
-        item(key = key) {
+        animatedItem(key, reduceMotion) {
             FolderRow(bookmark.title, ArdiaSymbols.folderFill, null, depth, isOpen) { toggle(key) }
         }
-        if (isOpen) bookmarks(bookmark.children.orEmpty(), depth + 1, expanded, toggle, links)
+        if (isOpen) bookmarks(bookmark.children.orEmpty(), depth + 1, expanded, toggle, links, reduceMotion)
     }
 }
 
-private fun LazyListScope.deviceSection(device: DeviceTabs, isExpanded: Boolean, links: RemoteLinks, expand: () -> Unit) {
+private fun LazyListScope.deviceSection(device: DeviceTabs, isExpanded: Boolean, links: RemoteLinks, reduceMotion: Boolean, expand: () -> Unit) {
     val expanded = isExpanded || device.tabs.size <= COLLAPSED_LIMIT + 1
     item(key = "device:${device.deviceId}") { SectionHeader(device.deviceName, SpaceColors.device(device.deviceName, device.kind)) }
     val shown = if (expanded) device.tabs else device.tabs.take(COLLAPSED_LIMIT)
-    items(shown, key = { "remote:${device.deviceId}:${it.id}" }) { tab -> RemoteRow(tab.title, tab.url, 0, links) }
-    if (!expanded) item(key = "more:${device.deviceId}") { ShowAllRow(expand) }
+    items(shown, key = { "remote:${device.deviceId}:${it.id}" }) { tab ->
+        Box(listItemMotion(reduceMotion)) { RemoteRow(tab.title, tab.url, 0, links) }
+    }
+    if (!expanded) animatedItem("more:${device.deviceId}", reduceMotion) { ShowAllRow(expand) }
+}
+
+private fun LazyListScope.animatedItem(key: String, reduceMotion: Boolean, content: @Composable () -> Unit) {
+    item(key = key) {
+        Box(listItemMotion(reduceMotion)) { content() }
+    }
 }
 
 @Composable

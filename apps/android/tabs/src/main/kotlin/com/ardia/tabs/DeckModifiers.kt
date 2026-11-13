@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import com.ardia.design.DeckHeaderMetrics
 import com.ardia.design.TabsDeckGeometry
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -152,28 +153,44 @@ internal fun Modifier.deckGestures(state: DeckState): Modifier = pointerInput(st
                 state.beginDrag(hit, (position.x - down.position.x) / density.toDouble(), (position.y - down.position.y) / density.toDouble())
                 state.drag((position.x - down.position.x) / density.toDouble(), (position.y - down.position.y) / density.toDouble())
                 var ended = false
-                while (!ended) {
-                    val event = awaitPointerEvent()
-                    val change = event.changes.firstOrNull { it.id == down.id }
-                    if (change == null) {
-                        ended = true
-                        continue
+                var cancelled = false
+                try {
+                    while (!ended) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id }
+                        if (change == null) {
+                            ended = true
+                            cancelled = true
+                            continue
+                        }
+                        if (change.changedToUpIgnoreConsumed()) {
+                            ended = true
+                            cancelled = change.isConsumed
+                            if (!cancelled) {
+                                tracker.addPosition(change.uptimeMillis, change.position)
+                                position = change.position
+                            }
+                        } else {
+                            tracker.addPosition(change.uptimeMillis, change.position)
+                            position = change.position
+                            change.consume()
+                            state.drag((position.x - down.position.x) / density.toDouble(), (position.y - down.position.y) / density.toDouble())
+                        }
                     }
-                    tracker.addPosition(change.uptimeMillis, change.position)
-                    position = change.position
-                    if (change.changedToUpIgnoreConsumed()) {
-                        ended = true
-                    } else {
-                        change.consume()
-                        state.drag((position.x - down.position.x) / density.toDouble(), (position.y - down.position.y) / density.toDouble())
-                    }
+                } catch (interrupted: CancellationException) {
+                    state.endDrag(dy = 0.0, velocityX = 0.0, velocityY = 0.0)
+                    throw interrupted
                 }
-                val velocity = tracker.calculateVelocity()
-                state.endDrag(
-                    dy = (position.y - down.position.y) / density.toDouble(),
-                    velocityX = velocity.x / density.toDouble(),
-                    velocityY = velocity.y / density.toDouble(),
-                )
+                if (cancelled) {
+                    state.endDrag(dy = 0.0, velocityX = 0.0, velocityY = 0.0)
+                } else {
+                    val velocity = tracker.calculateVelocity()
+                    state.endDrag(
+                        dy = (position.y - down.position.y) / density.toDouble(),
+                        velocityX = velocity.x / density.toDouble(),
+                        velocityY = velocity.y / density.toDouble(),
+                    )
+                }
             }
         }
     }
