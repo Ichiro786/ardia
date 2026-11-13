@@ -133,6 +133,8 @@ internal object ExternalLauncher {
         } else {
             Intent(Intent.ACTION_VIEW, Uri.parse(url))
         }
+        val dataScheme = intent.data?.scheme?.lowercase()
+        if (dataScheme == "file" || dataScheme == "content") return null
         intent.addCategory(Intent.CATEGORY_BROWSABLE)
         intent.component = null
         intent.selector = null

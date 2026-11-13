@@ -1,7 +1,6 @@
 package com.ardia.appmodel
 
 import android.app.role.RoleManager
-import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -65,7 +64,11 @@ class AndroidSystemActions(context: Context) : SystemActions {
 
     override fun copyText(text: String) {
         val clipboard = app.getSystemService(ClipboardManager::class.java) ?: return
-        clipboard.setPrimaryClip(ClipData.newPlainText("URL", text))
+        try {
+            clipboard.setPrimaryClip(ClipData.newPlainText("URL", text))
+        } catch (refused: RuntimeException) {
+            Unit
+        }
     }
 
     override fun share(url: String, title: String) {
@@ -110,9 +113,7 @@ class AndroidSystemActions(context: Context) : SystemActions {
     private fun start(intent: Intent): Boolean = try {
         app.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         true
-    } catch (missing: ActivityNotFoundException) {
-        false
-    } catch (refused: SecurityException) {
+    } catch (refused: RuntimeException) {
         false
     }
 }

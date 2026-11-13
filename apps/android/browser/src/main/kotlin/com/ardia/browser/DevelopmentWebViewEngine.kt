@@ -126,7 +126,7 @@ class DevelopmentWebViewEngine(
         val existing = roster.page(id)
         if (existing == null && setup.isPrivate && !separatesPrivatePages) throw PrivatePagesUnavailableException()
         val page = existing ?: WebViewPage(id, setup.isPrivate, this, setup, popup = null).also { roster.register(it, id) }
-        roster.activate(id)
+        bringToFront(id)
         return page
     }
 
@@ -137,8 +137,21 @@ class DevelopmentWebViewEngine(
         roster.page(id)?.let { close(id) }
         val page = WebViewPage(id, popup.isPrivate, this, PageSetup(url = popup.url, isPrivate = popup.isPrivate), popup)
         roster.register(page, id)
-        roster.activate(id)
+        bringToFront(id)
         return page
+    }
+
+    private fun bringToFront(id: String) {
+        val previous = roster.mostRecent
+        roster.activate(id)
+        if (previous != null && previous != id) roster.page(previous)?.leftFront()
+    }
+
+    internal fun isFront(page: WebViewPage): Boolean = roster.mostRecent == page.id && roster.page(page.id) === page
+
+    internal fun revive(page: WebViewPage) {
+        if (roster.page(page.id) !== page) return
+        roster.activate(page.id)
     }
 
     override fun existing(id: String): Page? = roster.page(id)

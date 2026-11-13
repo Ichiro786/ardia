@@ -1,7 +1,6 @@
 package com.ardia.browser
 
 import android.annotation.SuppressLint
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Rect
@@ -30,6 +29,7 @@ import kotlin.coroutines.resume
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 
@@ -67,10 +68,11 @@ internal class WebViewPage(
     private var webView: WebView? = null
     internal val webViewOrNull: WebView? get() = webView
     private var savedBundle: Bundle? = setup.savedState?.let(PageStateBundles::read)
+    private var savedBundleUrl: String? = null
     private var firstVisit: VisitKind? = setup.firstVisit
     private var pendingUrl: String? = null
     private var desktopSite = false
-    private var crashReloads = 0
+    private val crashReloads = CrashReloadBudget(CRASH_RELOAD_WINDOW_MILLIS)
     private var released = false
     private var systemUserAgent = ""
     private var filterHandler: ScriptHandler? = null
@@ -113,9 +115,8 @@ internal class WebViewPage(
         update { it.copy(isLive = true, pageZoom = zoom, isDesktopSite = desktopSite) }
         val popup = popup
         this.popup = null
-        val saved = savedBundle
-        savedBundle = null
         val url = mutableState.value.url
+        val saved = savedBundle?.takeIf { savedBundleMatches(url) }
         val pending = pendingUrl
         pendingUrl = null
         when {
@@ -126,7 +127,7 @@ internal class WebViewPage(
                 popup.transport.sendToTarget()
             }
             pending != null -> navigate(web, pending, VisitKind.Typed)
-            saved != null && restore(web, saved, url) -> Unit
+            saved != null && restore(web, saved, url) -> savedBundleUrl = url
             url != null && BrowserUrl.scheme(url) != BrowserUrl.BROWSE_SCHEME -> navigate(web, url, firstVisit ?: VisitKind.Restored)
         }
         firstVisit = null
@@ -134,7 +135,7 @@ internal class WebViewPage(
 
     override fun discard() {
         val web = webView ?: return
-        savedBundle = Bundle().also { saveInto(web, it) }
+        keepSavedBundle(web)
         tearDown(web)
     }
 
@@ -142,7 +143,30 @@ internal class WebViewPage(
         released = true
         webView?.let(::tearDown)
         savedBundle = null
+        savedBundleUrl = null
         popup = null
+    }
+
+    private fun keepSavedBundle(web: WebView): Bundle {
+        val bundle = Bundle().also { saveInto(web, it) }
+        savedBundle = bundle
+        savedBundleUrl = web.url ?: mutableState.value.url
+        return bundle
+    }
+
+    private fun savedBundleMatches(url: String?): Boolean {
+        val known = savedBundleUrl ?: return true
+        return url == null || BrowserUrl.withoutFragment(known) == BrowserUrl.withoutFragment(url)
+    }
+
+    internal fun showsDialogsFrom(view: WebView): Boolean = view === webView && engine.isFront(this)
+
+    internal fun leftFront() {
+        val pending = mutableRequest.value ?: return
+        when (pending.kind) {
+            is PageRequest.Kind.Alert, is PageRequest.Kind.Confirm, is PageRequest.Kind.Prompt -> pending.dismiss()
+            else -> Unit
+        }
     }
 
     override fun close() = engine.close(id)
@@ -161,11 +185,11 @@ internal class WebViewPage(
 
     override fun reload() {
         failedUrl = null
-        crashReloads = 0
+        crashReloads.reset()
         update { it.copy(failure = null) }
         val web = webView
         if (web == null) {
-            makeLive()
+            engine.revive(this)
             return
         }
         val current = web.url
@@ -255,7 +279,11 @@ internal class WebViewPage(
         val script = withContext(Dispatchers.IO) { engine.scripts.reader }
         val raw = withContext(Dispatchers.Main.immediate) {
             val web = webView ?: throw ReadableContentException(ReadableContentException.Reason.PageNotLoaded)
-            evaluate(web, PageScripts.readerCall(script))
+            try {
+                withTimeout(READER_TIMEOUT_MILLIS) { evaluate(web, PageScripts.readerCall(script)) }
+            } catch (expired: TimeoutCancellationException) {
+                throw ReadableContentException(ReadableContentException.Reason.NotReadable)
+            }
         }
         val json = PageScripts.decodeEvaluationResult(raw) ?: throw ReadableContentException(ReadableContentException.Reason.NotReadable)
         return withContext(Dispatchers.Default) {
@@ -354,7 +382,7 @@ internal class WebViewPage(
     }
 
     override fun saveState(): ByteArray? {
-        val bundle = webView?.let { web -> Bundle().also { saveInto(web, it) } } ?: savedBundle ?: return null
+        val bundle = webView?.let(::keepSavedBundle) ?: savedBundle ?: return null
         return PageStateBundles.write(bundle)
     }
 
@@ -548,7 +576,6 @@ internal class WebViewPage(
 
     internal fun pageFinished(web: WebView, url: String) {
         if (web !== webView) return
-        crashReloads = 0
         progressThrottle.reset()
         answeredSignIns.clear()
         update {
@@ -621,17 +648,16 @@ internal class WebViewPage(
         update { it.copy(failure = PageLoadFailure.Network(reason)) }
     }
 
-    internal fun rendererGone(web: WebView, didCrash: Boolean) {
+    internal fun rendererGone(web: WebView) {
         if (web !== webView) {
             (web.parent as? ViewGroup)?.removeView(web)
             web.destroy()
             return
         }
         tearDown(web)
-        if (!didCrash || released) return
-        if (crashReloads == 0) {
-            crashReloads += 1
-            engine.mainHandler.post { makeLive() }
+        if (released || !engine.isFront(this)) return
+        if (crashReloads.spend(SystemClock.elapsedRealtime())) {
+            engine.mainHandler.post { if (!released && !isLive && engine.isFront(this)) engine.revive(this) }
         } else {
             update { it.copy(failure = PageLoadFailure.Crashed) }
         }
@@ -725,9 +751,7 @@ internal class WebViewPage(
                 engine.appContext.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
             true
-        } catch (error: ActivityNotFoundException) {
-            false
-        } catch (error: SecurityException) {
+        } catch (error: RuntimeException) {
             false
         }
     }
@@ -768,13 +792,20 @@ internal class WebViewPage(
                 true
             }
             WebView.HitTestResult.IMAGE_TYPE -> {
+                if (!BrowserUrl.isWeb(extra)) return false
                 emit(PageEvent.LongPress(PressTarget.Image(extra, null), x, y))
                 true
             }
             WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE -> {
                 requestFocusNode(web) { data ->
                     val link = data.getString("url")?.takeIf { ExternalLinks.route(it) == LinkRoute.Web }
-                    emit(PageEvent.LongPress(PressTarget.Image(data.getString("src") ?: extra, link), x, y))
+                    val image = (data.getString("src") ?: extra).takeIf(BrowserUrl::isWeb)
+                    val target = when {
+                        image != null -> PressTarget.Image(image, link)
+                        link != null -> PressTarget.Link(link, data.getString("title")?.trim()?.ifEmpty { null })
+                        else -> null
+                    }
+                    target?.let { emit(PageEvent.LongPress(it, x, y)) }
                 }
                 true
             }
@@ -837,6 +868,8 @@ internal class WebViewPage(
 
     companion object {
         private const val SAVED_STATE_LIMIT = 512 * 1024
+        private const val CRASH_RELOAD_WINDOW_MILLIS = 30_000L
+        private const val READER_TIMEOUT_MILLIS = 8_000L
         private const val CLIENT_REDIRECT_WINDOW_MILLIS = 1500L
         private const val BLOCKED_FLUSH_MILLIS = 250L
         private const val DRAW_ATTEMPTS = 2

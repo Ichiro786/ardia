@@ -60,3 +60,18 @@ class LivePageRoster<P : DiscardablePage>(limit: Int) {
         }
     }
 }
+
+class CrashReloadBudget(private val windowMillis: Long) {
+    private var lastReloadAt: Long? = null
+
+    fun spend(now: Long): Boolean {
+        val last = lastReloadAt
+        if (last != null && now - last < windowMillis) return false
+        lastReloadAt = now
+        return true
+    }
+
+    fun reset() {
+        lastReloadAt = null
+    }
+}

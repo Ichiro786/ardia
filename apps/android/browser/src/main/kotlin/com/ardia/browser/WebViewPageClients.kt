@@ -105,7 +105,7 @@ internal class WebViewPageClient(private val page: WebViewPage) : WebViewClient(
     }
 
     override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
-        page.rendererGone(view, detail.didCrash())
+        page.rendererGone(view)
         return true
     }
 }
@@ -121,11 +121,19 @@ internal class WebViewPageChromeClient(private val page: WebViewPage) : WebChrom
     override fun onReceivedIcon(view: WebView, icon: Bitmap?) = page.iconReceived(view, icon)
 
     override fun onJsAlert(view: WebView, url: String?, message: String?, result: JsResult): Boolean {
+        if (!page.showsDialogsFrom(view)) {
+            result.cancel()
+            return true
+        }
         page.ask(PageRequest.Kind.Alert(message.orEmpty()), frameHost(url)) { result.confirm() }
         return true
     }
 
     override fun onJsConfirm(view: WebView, url: String?, message: String?, result: JsResult): Boolean {
+        if (!page.showsDialogsFrom(view)) {
+            result.cancel()
+            return true
+        }
         page.ask(PageRequest.Kind.Confirm(message.orEmpty()), frameHost(url)) { answer ->
             if (answer == PageRequest.Answer.Accepted) result.confirm() else result.cancel()
         }
@@ -133,6 +141,10 @@ internal class WebViewPageChromeClient(private val page: WebViewPage) : WebChrom
     }
 
     override fun onJsPrompt(view: WebView, url: String?, message: String?, defaultValue: String?, result: JsPromptResult): Boolean {
+        if (!page.showsDialogsFrom(view)) {
+            result.cancel()
+            return true
+        }
         page.ask(PageRequest.Kind.Prompt(message.orEmpty(), defaultValue.orEmpty()), frameHost(url)) { answer ->
             if (answer is PageRequest.Answer.Text) result.confirm(answer.text) else result.cancel()
         }
