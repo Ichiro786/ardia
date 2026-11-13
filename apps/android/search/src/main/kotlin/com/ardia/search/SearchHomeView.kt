@@ -42,9 +42,7 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.max
 import com.ardia.appmodel.AppModel
 import com.ardia.design.ArdiaSymbols
 import com.ardia.design.BrowseLayout
@@ -125,7 +123,7 @@ private fun DeckBar(model: AppModel, frost: FrostedBackdrop, enabled: Boolean, m
     val navigationBottom = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
     val safe = WindowInsets.safeDrawing
     val safeSide = with(density) { maxOf(safe.getLeft(this, direction), safe.getRight(this, direction)).toDp() }
-    val centerFromBottom = max(navigationBottom, 20.dp) + 6.dp
+    val centerFromBottom = BrowseLayout.barCenter(navigationBottom)
     val side = safeSide + TabsLayout.barSideInset - (BrowseLayout.hitTarget - TabsLayout.barCircle) / 2
     val opensTabs = model.deckTabs.isNotEmpty()
     val syncs = model.syncState.isEnabled
@@ -251,9 +249,8 @@ private fun DeckCircleButton(symbol: ImageVector, label: String, frost: FrostedB
         contentAlignment = Alignment.Center,
     ) {
         Box(Modifier.size(TabsLayout.barCircle).frosted(frost, CircleShape, FrostedStyle.glass), contentAlignment = Alignment.Center) {
-            Icon(symbol, null, Modifier.size(DECK_SYMBOL), tint = BrowsePalette.foregroundSecondary.current)
+            Icon(symbol, null, Modifier.size(TabsLayout.barSymbol), tint = BrowsePalette.foregroundSecondary.current)
         }
     }
 }
 
-private val DECK_SYMBOL: Dp = 17.dp

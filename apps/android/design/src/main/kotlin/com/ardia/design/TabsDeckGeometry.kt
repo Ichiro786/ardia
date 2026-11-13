@@ -16,12 +16,14 @@ data class TabsDeckGeometry(val container: DeckSize, val safeTop: Double, val sa
     val spacing: Double
     val leftReach: Double
     val cardCenterY: Double
+    val barCenterY: Double
 
     init {
         val width = max(container.width, 1.0)
         val height = max(container.height, 1.0)
         val bandTop = safeTop + TOP_RESERVE + HEADER_HEIGHT
-        val bandBottom = height - max(safeBottom, 20.0) - BAR_RESERVE + 24
+        barCenterY = height - max(BAR_CENTER_FROM_BOTTOM, safeBottom + BAR_HIT_TARGET / 2)
+        val bandBottom = barCenterY - BAR_CLEARANCE
         val band = max(bandBottom - bandTop, 120.0)
         val aspect = height / width
         val cardWidth = min(width * CARD_WIDTH_RATIO, band / aspect)
@@ -52,8 +54,6 @@ data class TabsDeckGeometry(val container: DeckSize, val safeTop: Double, val sa
 
     val tabButtonCenter: DeckPoint get() = DeckPoint(safeSide + 16 + 17.5, barCenterY)
 
-    val barCenterY: Double get() = container.height - max(safeBottom, 20.0) - 6
-
     fun scrollDelta(dragTranslation: Double): Double = -dragTranslation / spacing
 
     fun settleTarget(scroll: Double, velocity: Double, count: Int): Int {
@@ -69,6 +69,9 @@ data class TabsDeckGeometry(val container: DeckSize, val safeTop: Double, val sa
         const val STEP_RATIO = 218.0 / 440.0
         const val HEADER_HEIGHT = 20.0
         const val BAR_RESERVE = 58.0
+        const val BAR_CENTER_FROM_BOTTOM = 44.0
+        const val BAR_HIT_TARGET = 44.0
+        const val BAR_CLEARANCE = 28.0
         const val TOP_RESERVE = 12.0
         const val HEADER_FAVICON_ONLY_WIDTH = 72.0
 

@@ -1,8 +1,10 @@
 package com.ardia.design
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.max
 
 object BrowsePalette {
     val foregroundPrimary = adaptive(ardiaColor(0x0E0F10, 0.9f), Color.White.copy(alpha = 0.8f))
@@ -52,4 +54,6 @@ object BrowseLayout {
     const val barControlScale = 0.93f
     val progressHeight = 2.5.dp
     val toolbarTile = 78.dp
+
+    fun barCenter(navigationInset: Dp): Dp = max(barCenterFromBottom, navigationInset + hitTarget / 2)
 }

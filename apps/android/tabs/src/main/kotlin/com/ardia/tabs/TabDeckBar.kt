@@ -168,7 +168,7 @@ internal fun DeckCircleButton(symbol: ImageVector, label: String, backdrop: Fros
         contentAlignment = Alignment.Center,
     ) {
         Box(Modifier.size(TabsLayout.barCircle).frosted(backdrop, CircleShape, style), contentAlignment = Alignment.Center) {
-            Icon(symbol, null, Modifier.size(17.dp), tint = SystemPalette.secondaryLabel.resolve(dark))
+            Icon(symbol, null, Modifier.size(TabsLayout.barSymbol), tint = SystemPalette.secondaryLabel.resolve(dark))
         }
     }
 }

@@ -2,7 +2,6 @@ package com.ardia.browsing
 
 import android.Manifest
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.max
 import com.ardia.browser.SitePermission
 import com.ardia.design.BrowseLayout
 import com.ardia.design.PagerPhysics
@@ -15,7 +14,7 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 object BarGeometry {
-    fun centerFromBottom(navigationInset: Dp): Dp = max(BrowseLayout.barCenterFromBottom, navigationInset + BrowseLayout.hitTarget / 2)
+    fun centerFromBottom(navigationInset: Dp): Dp = BrowseLayout.barCenter(navigationInset)
 
     fun height(navigationInset: Dp): Dp = BrowseLayout.barHeight + (centerFromBottom(navigationInset) - BrowseLayout.barCenterFromBottom)
 
