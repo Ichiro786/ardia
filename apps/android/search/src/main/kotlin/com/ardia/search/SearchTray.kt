@@ -35,7 +35,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import com.ardia.design.adaptive
+import com.ardia.design.glassRim
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
@@ -423,35 +427,54 @@ private fun TrayBody(
 private fun RowsArea(rows: List<TrayRow>, typed: String, isIncognito: Boolean, controller: TrayController) {
     val scrollable = LocalDensity.current.fontScale > LARGE_FONT_SCALE
     val overflow = remember { OverflowFlag() }
+    val card = Glass.isLiquid
+    val dark = LocalArdiaDarkTheme.current || isIncognito
     Box(
         Modifier
             .fillMaxSize()
-            .clipToBounds()
-            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-            .drawWithContent {
-                drawContent()
-                if (!scrollable && overflow.value) drawRect(FADE_MASK, blendMode = BlendMode.DstIn)
-            },
+            .then(if (card) Modifier.padding(horizontal = BrowseLayout.searchFieldInset).padding(bottom = Spacing.tight) else Modifier),
     ) {
-        SuggestionList(
-            rows = rows,
-            typed = typed,
-            isIncognito = isIncognito,
-            scrollable = scrollable,
-            scrub = controller.scrub,
-            actions = controller,
-            visibleHeight = { overflow.budget },
-            modifier = if (scrollable) {
-                Modifier.fillMaxSize()
-            } else {
-                Modifier.layout { measurable, constraints ->
-                    val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
-                    overflow.value = placeable.height > constraints.maxHeight + 1
-                    overflow.budget = constraints.maxHeight.toFloat()
-                    layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, 0) }
-                }
-            },
-        )
+        Box(
+            (if (card && !scrollable) Modifier.fillMaxWidth() else Modifier.fillMaxSize())
+                .then(
+                    if (card) {
+                        Modifier
+                            .clip(CARD_SHAPE)
+                            .background((if (isIncognito) INCOGNITO_CARD_FILL else CARD_FILL).resolve(dark), CARD_SHAPE)
+                            .glassRim(CARD_SHAPE, true, dark)
+                            .padding(top = Spacing.tight)
+                    } else {
+                        Modifier
+                    },
+                )
+                .clipToBounds()
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                .drawWithContent {
+                    drawContent()
+                    if (!scrollable && overflow.value) drawRect(FADE_MASK, blendMode = BlendMode.DstIn)
+                },
+        ) {
+            SuggestionList(
+                rows = rows,
+                typed = typed,
+                isIncognito = isIncognito,
+                scrollable = scrollable,
+                scrub = controller.scrub,
+                actions = controller,
+                visibleHeight = { overflow.budget },
+                modifier = if (scrollable) {
+                    Modifier.fillMaxSize()
+                } else {
+                    Modifier.layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
+                        overflow.value = placeable.height > constraints.maxHeight + 1
+                        overflow.budget = constraints.maxHeight.toFloat()
+                        val shownHeight = if (card) minOf(placeable.height, constraints.maxHeight) else constraints.maxHeight
+                        layout(constraints.maxWidth, shownHeight) { placeable.place(0, 0) }
+                    }
+                },
+            )
+        }
     }
 }
 
@@ -467,4 +490,7 @@ private val FADE_MASK = Brush.verticalGradient(
     1f to Color.Black.copy(alpha = 0.15f),
 )
 private val PANEL_SHADOW = 12.dp
+private val CARD_SHAPE = RoundedCornerShape(22.dp)
+private val CARD_FILL = adaptive(Color.White.copy(alpha = 0.6f), Color.White.copy(alpha = 0.07f))
+private val INCOGNITO_CARD_FILL = adaptive(Color.White.copy(alpha = 0.08f), Color.White.copy(alpha = 0.08f))
 private const val PANEL_EXTENSION = 12f

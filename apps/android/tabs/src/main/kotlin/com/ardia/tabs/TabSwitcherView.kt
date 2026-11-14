@@ -13,6 +13,10 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.runtime.Composable
@@ -106,6 +110,19 @@ private fun TabDeck(model: AppModel, state: DeckState, haptics: Haptics, geometr
     val range = state.renderedRange
     val tabs = state.tabsById
     val privateCount = model.tabs.privateTabs.size
+    val liquid = LocalLiquidGlass.current
+    var query by rememberSaveable { mutableStateOf("") }
+    val actions = remember(model, state) {
+        DeckBarActions(
+            newTab = model::newTab,
+            newRegularTab = model::newRegularTab,
+            newIncognitoTab = model::newIncognitoTab,
+            reopen = model::reopenLastClosed,
+            closeAll = { state.isConfirmingCloseAll = true },
+            leading = { if (model.syncState.isEnabled) model.openSyncedSpaces() else model.openArchive() },
+            settings = { model.sheet = AppModel.Sheet.Settings },
+        )
+    }
     Box(
         Modifier
             .fillMaxSize()
@@ -191,24 +208,53 @@ private fun TabDeck(model: AppModel, state: DeckState, haptics: Haptics, geometr
             showsSyncedTabs = model.syncState.isEnabled,
             canReopen = model.tabs.canReopenClosed,
             hasTabs = order.isNotEmpty(),
-            actions = remember(model, state) {
-                DeckBarActions(
-                    newTab = model::newTab,
-                    newRegularTab = model::newRegularTab,
-                    newIncognitoTab = model::newIncognitoTab,
-                    reopen = model::reopenLastClosed,
-                    closeAll = { state.isConfirmingCloseAll = true },
-                    leading = { if (model.syncState.isEnabled) model.openSyncedSpaces() else model.openArchive() },
-                    settings = { model.sheet = AppModel.Sheet.Settings },
-                )
-            },
+            actions = actions,
             modifier = Modifier
                 .zIndex(OVERLAY_LAYER + 2)
                 .centeredAt(geometry.barCenterY)
                 .shieldsDeck()
                 .padding(horizontal = geometry.safeSide.dp + barSidePadding(LocalBarButtonScale.current))
                 .graphicsLayer { alpha = state.chromeOpacity },
+            search = if (liquid) DeckSearch(query) { query = it } else null,
         )
+        if (liquid) {
+            val profiles = if (model.syncState.isEnabled && !model.isIncognito) model.syncSnapshot.profiles else emptyList()
+            DeckTopBar(
+                spaces = profiles.map { it.name },
+                selectedSpace = profiles.indexOfFirst { it.syncId == model.selectedProfile?.syncId },
+                chooseSpace = { index -> profiles.getOrNull(index)?.let { model.switchProfile(it.syncId) } },
+                backdrop = backdrop,
+                look = look,
+                showsSyncedTabs = model.syncState.isEnabled,
+                hasTabs = order.isNotEmpty(),
+                isIncognito = model.isIncognito,
+                actions = actions,
+                modifier = Modifier
+                    .zIndex(OVERLAY_LAYER + 1)
+                    .align(Alignment.TopCenter)
+                    .offset(y = geometry.safeTop.dp)
+                    .padding(horizontal = geometry.safeSide.dp + barSidePadding(LocalBarButtonScale.current))
+                    .graphicsLayer { alpha = if (state.lifting.isEmpty()) state.chromeOpacity else 0f }
+                    .shieldsDeck(),
+            )
+            if (query.isNotBlank()) {
+                val needle = query.trim()
+                val found = order.mapNotNull { tabs[it] }.filter { it.title.contains(needle, true) || it.url.contains(needle, true) }
+                TabSearchResults(
+                    found = found,
+                    backdrop = backdrop,
+                    open = { id ->
+                        query = ""
+                        state.openFound(id)
+                    },
+                    modifier = Modifier
+                        .zIndex(OVERLAY_LAYER + 2)
+                        .bottomAt(geometry.barCenterY - RESULTS_GAP)
+                        .padding(horizontal = geometry.safeSide.dp + Spacing.page)
+                        .shieldsDeck(),
+                )
+            }
+        }
         val cover = state.cover
         if (cover != null) {
             Image(
@@ -265,6 +311,7 @@ const val DECK_TAG = "tabs.deck"
 private const val EXPANDED_LAYER = 100_000f
 private const val OVERLAY_LAYER = 1_000_000f
 private const val ARCHIVE_CARD_RISE = 76.0
+private const val RESULTS_GAP = 32.0
 private fun barSidePadding(scale: Float): Dp {
     val circle = TabsLayout.barCircle * scale
     return TabsLayout.barSideInset - (BarButtons.hitTarget(circle) - circle) / 2
@@ -274,5 +321,12 @@ private fun Modifier.centeredAt(centerY: Double): Modifier = layout { measurable
     val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
     layout(constraints.maxWidth, constraints.maxHeight) {
         placeable.place((constraints.maxWidth - placeable.width) / 2, (centerY * density - placeable.height / 2.0).roundToInt())
+    }
+}
+
+private fun Modifier.bottomAt(bottomY: Double): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+    layout(constraints.maxWidth, constraints.maxHeight) {
+        placeable.place((constraints.maxWidth - placeable.width) / 2, (bottomY * density - placeable.height).roundToInt())
     }
 }

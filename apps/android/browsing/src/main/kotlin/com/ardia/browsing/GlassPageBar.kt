@@ -46,7 +46,6 @@ import com.ardia.design.ArdiaSymbols
 import com.ardia.design.ArdiaType
 import com.ardia.design.BrowsePalette
 import com.ardia.design.FaviconImage
-import com.ardia.design.FrostedBackdrop
 import com.ardia.design.Glass
 import com.ardia.design.LocalBarButtonScale
 import com.ardia.design.Motion
@@ -80,7 +79,7 @@ private const val HIDDEN_ALPHA = 0.02f
 internal fun GlassPageBar(
     model: AppModel,
     tab: BrowserTab?,
-    backdrop: FrostedBackdrop?,
+    seeThrough: Boolean,
     shrunk: Boolean,
     navigationBottom: Dp,
     reduceMotion: Boolean,
@@ -92,6 +91,7 @@ internal fun GlassPageBar(
     modifier: Modifier = Modifier,
 ) {
     val scale = LocalBarButtonScale.current
+    val pieceStyle = if (seeThrough) Glass.overPage else Glass.control
     val shrink by animateFloatAsState(
         targetValue = if (shrunk) 1f else 0f,
         animationSpec = if (reduceMotion) tween(200) else Motion.pillShrink.spec(),
@@ -124,7 +124,7 @@ internal fun GlassPageBar(
                         .testTag(BrowsingTags.TABS)
                         .barPress(interaction)
                         .size(pieceSize)
-                        .frosted(backdrop, CircleShape, Glass.control)
+                        .frosted(null, CircleShape, pieceStyle)
                         .combinedClickable(
                             interactionSource = interaction,
                             indication = null,
@@ -157,7 +157,7 @@ internal fun GlassPageBar(
                     .testTag(BrowsingTags.ADDRESS)
                     .then(addressDrag)
                     .barPress(addressInteraction)
-                    .frosted(backdrop, addressShape, Glass.control)
+                    .frosted(null, addressShape, pieceStyle)
                     .clickable(
                         interactionSource = addressInteraction,
                         indication = null,
@@ -197,7 +197,7 @@ internal fun GlassPageBar(
                             .testTag(BrowsingTags.PLUS)
                             .barPress(interaction)
                             .size(pieceSize)
-                            .frosted(backdrop, CircleShape, Glass.control)
+                            .frosted(null, CircleShape, pieceStyle)
                             .clickable(interactionSource = interaction, indication = null, enabled = !shrunk, role = Role.Button, onClick = model::newTab)
                             .semantics { contentDescription = plusLabel },
                         contentAlignment = Alignment.Center,

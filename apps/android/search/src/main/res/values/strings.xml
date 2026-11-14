@@ -26,6 +26,7 @@
     <string name="deck_synced_tabs">Synced Tabs</string>
     <string name="deck_archive">Archive</string>
     <string name="deck_settings">Settings</string>
+    <string name="deck_switch_space">Switch space</string>
     <string name="deck_new_tab">New Tab</string>
     <string name="deck_new_incognito_tab">New Incognito Tab</string>
     <string name="deck_reopen_closed_tab">Reopen Closed Tab</string>

@@ -69,10 +69,7 @@ import com.ardia.design.LoadingLine
 import com.ardia.design.LocalArdiaDarkTheme
 import com.ardia.design.LocalBarButtonScale
 import com.ardia.design.LocalReduceMotion
-import com.ardia.design.FrostedBackdrop
 import com.ardia.design.LocalLiquidGlass
-import com.ardia.design.frostedBackdropSource
-import com.ardia.design.rememberFrostedBackdrop
 import com.ardia.design.Motion
 import com.ardia.store.BrowserTab
 import kotlin.math.roundToInt
@@ -104,7 +101,6 @@ fun BrowsingView(model: AppModel, isFront: Boolean, modifier: Modifier = Modifie
     val liquid = LocalLiquidGlass.current
     val seeThrough = liquid && model.settings.seeThroughBar
     val underlaps = collapses || seeThrough
-    val barBackdrop = rememberFrostedBackdrop()
     val pageBottomInset = if (underlaps) 0.dp else BarGeometry.pageBottomInset(navigationBottom, barScale)
     val colors = page?.select { it.themeColor to it.backgroundColor }?.value
     val tone = tab?.let { model.tone(it, colors?.first, colors?.second) }
@@ -155,14 +151,14 @@ fun BrowsingView(model: AppModel, isFront: Boolean, modifier: Modifier = Modifie
     }
     LaunchedEffect(page, underlaps) {
         page ?: return@LaunchedEffect
-        page.state.map { it.scrollDirection }.distinctUntilChanged().collect { direction ->
-            barHidden = underlaps && direction == ScrollDirection.Down
+        page.state.map { it.scrollDirection to it.isScrolledToTop }.distinctUntilChanged().collect { (direction, atTop) ->
+            barHidden = underlaps && direction == ScrollDirection.Down && !atTop
         }
     }
     val toneBottomInset = with(density) { (if (underlaps) barHeight else BarGeometry.PAGE_OVERLAP).toPx().roundToInt() }
     LaunchedEffect(page, isFront, toneBottomInset) {
         if (page == null || !isFront) return@LaunchedEffect
-        page.state.map { Triple(it.isLoading, it.scrollDirection, it.isScrolledToTop) }.distinctUntilChanged().collectLatest { (loading, _, _) ->
+        page.state.map { it.isLoading to it.isScrolledToTop }.distinctUntilChanged().collectLatest { (loading, _) ->
             if (loading) return@collectLatest
             delay(TONE_SETTLE_MILLIS)
             val sampled = page.sampleTone(0, toneBottomInset) ?: return@collectLatest
@@ -226,7 +222,6 @@ fun BrowsingView(model: AppModel, isFront: Boolean, modifier: Modifier = Modifie
                         .fillMaxWidth()
                         .weight(1f)
                         .padding(bottom = pageBottomInset)
-                        .then(if (seeThrough) Modifier.frostedBackdropSource(barBackdrop) else Modifier),
                 ) {
                     PageContent(
                         tab = tab,
@@ -258,7 +253,7 @@ fun BrowsingView(model: AppModel, isFront: Boolean, modifier: Modifier = Modifie
             pager = pager,
             tab = tab,
             tone = tone?.bottom,
-            backdrop = if (seeThrough) barBackdrop else null,
+            seeThrough = seeThrough,
             liquid = liquid,
             underlaps = underlaps,
             hidden = if (liquid) isFinding else barHidden || isFinding,
@@ -307,7 +302,7 @@ private fun Bar(
     pager: TabPager,
     tab: BrowserTab?,
     tone: Int?,
-    backdrop: FrostedBackdrop?,
+    seeThrough: Boolean,
     liquid: Boolean,
     underlaps: Boolean,
     hidden: Boolean,
@@ -351,7 +346,7 @@ private fun Bar(
                 GlassPageBar(
                     model = model,
                     tab = tab,
-                    backdrop = backdrop,
+                    seeThrough = seeThrough,
                     shrunk = shrunk,
                     navigationBottom = navigationBottom,
                     reduceMotion = reduceMotion,

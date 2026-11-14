@@ -1,6 +1,10 @@
 package com.ardia.search
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -37,10 +41,14 @@ import com.ardia.design.BrowsePalette
 import com.ardia.design.FidgetLogo
 import com.ardia.design.FrostedBackdrop
 import com.ardia.design.FrostedStyle
+import com.ardia.design.FaviconImage
+import com.ardia.design.Glass
 import com.ardia.design.GlassCircleButton
 import com.ardia.design.GlassMenu
 import com.ardia.design.GlassMenuItem
 import com.ardia.design.GlassPlusButton
+import com.ardia.design.GlassSpaceSwitcher
+import com.ardia.design.GlassTile
 import com.ardia.design.LocalArdiaDarkTheme
 import com.ardia.design.LocalBarButtonScale
 import com.ardia.design.LocalReduceMotion
@@ -51,6 +59,9 @@ import com.ardia.design.TabsDeckGeometry
 import com.ardia.design.TabsLayout
 import com.ardia.design.frostedBackdropSource
 import com.ardia.design.rememberFrostedBackdrop
+import com.ardia.store.BrowserUrl
+import com.ardia.sync.PinnedTile
+import com.ardia.sync.SyncedProfile
 
 @Composable
 fun SearchHomeView(model: AppModel, modifier: Modifier = Modifier) {
@@ -85,7 +96,27 @@ fun SearchHomeView(model: AppModel, modifier: Modifier = Modifier) {
                 }
             }
             val hidden = if (isTrayUp) Modifier.clearAndSetSemantics {} else Modifier
-            FidgetLogo(
+            val space = if (Glass.isLiquid && model.syncState.isEnabled && !isIncognito) model.selectedProfile else null
+            val showsTiles = space != null && space.pinned.tiles.isNotEmpty()
+            if (space != null) {
+                SpaceStart(
+                    model = model,
+                    space = space,
+                    frost = frost,
+                    showsTiles = showsTiles,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(bottom = (TabsDeckGeometry.BAR_RESERVE * 0.5).dp + if (showsTiles) 0.dp else BrowseLayout.logoSize * 1.3f)
+                        .graphicsLayer {
+                            alpha = shown.value
+                            val scale = if (reduceMotion) 1f else 0.92f + 0.08f * shown.value
+                            scaleX = scale
+                            scaleY = scale
+                        }
+                        .then(hidden),
+                )
+            }
+            if (!showsTiles) FidgetLogo(
                 Modifier
                     .align(Alignment.Center)
                     .padding(bottom = (TabsDeckGeometry.BAR_RESERVE * 0.5).dp)
@@ -216,3 +247,63 @@ private fun DeckCircleButton(symbol: ImageVector, label: String, frost: FrostedB
         onClick = onClick,
     )
 }
+
+@Composable
+private fun SpaceStart(model: AppModel, space: SyncedProfile, frost: FrostedBackdrop, showsTiles: Boolean, modifier: Modifier = Modifier) {
+    val profiles = model.syncSnapshot.profiles
+    Column(
+        modifier.widthIn(max = 360.dp).padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        GlassSpaceSwitcher(
+            spaces = profiles.map { it.name },
+            selected = profiles.indexOfFirst { it.syncId == space.syncId },
+            hint = stringResource(R.string.deck_switch_space),
+            backdrop = frost,
+            choose = { index -> profiles.getOrNull(index)?.let { model.switchProfile(it.syncId) } },
+        )
+        if (showsTiles) {
+            for (row in space.pinned.tiles.take(MAX_START_TILES).chunked(START_TILE_COLUMNS)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    for (tile in row) StartTile(model, space.syncId, tile, frost, Modifier.weight(1f))
+                    repeat(START_TILE_COLUMNS - row.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StartTile(model: AppModel, spaceId: String, tile: PinnedTile, frost: FrostedBackdrop, modifier: Modifier = Modifier) {
+    val folder = tile.folder?.takeIf { it.isNotEmpty() }
+    var menu by remember { mutableStateOf(false) }
+    val label = tile.title.ifEmpty { BrowserUrl.host(tile.url).orEmpty() }
+    Box(modifier) {
+        GlassTile(
+            label = label,
+            backdrop = frost,
+            onClick = { if (folder != null) menu = true else model.openRemote(tile.url, tile.title, spaceId) },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            if (folder != null) {
+                Icon(ArdiaSymbols.folderFill, null, Modifier.size(20.dp), tint = BrowsePalette.foregroundSecondary.current)
+            } else {
+                FaviconImage(null, tile.url, size = 22.dp)
+            }
+        }
+        if (folder != null) {
+            GlassMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                for (tab in folder) {
+                    GlassMenuItem(tab.title.ifEmpty { BrowserUrl.host(tab.url).orEmpty() }, null) {
+                        menu = false
+                        model.openRemote(tab.url, tab.title, spaceId)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private const val START_TILE_COLUMNS = 4
+private const val MAX_START_TILES = 8

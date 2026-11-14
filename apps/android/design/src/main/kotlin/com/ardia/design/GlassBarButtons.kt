@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 
 private val pillShape = RoundedCornerShape(50)
 
@@ -74,6 +75,7 @@ fun GlassPlusButton(
     classicStyle: FrostedStyle,
     iconSize: Dp,
     enabled: Boolean = true,
+    compact: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     menu: @Composable () -> Unit,
@@ -86,7 +88,7 @@ fun GlassPlusButton(
         Box(
             Modifier
                 .springPress(interaction)
-                .size(TabsLayout.barPlus * scale)
+                .size(if (compact) DpSize(TabsLayout.barCircle * scale, TabsLayout.barCircle * scale) else TabsLayout.barPlus * scale)
                 .glassShadow(pillShape, liquid, dark)
                 .frosted(if (liquid) null else backdrop, pillShape, if (liquid) Glass.activeStyle else classicStyle)
                 .combinedClickable(

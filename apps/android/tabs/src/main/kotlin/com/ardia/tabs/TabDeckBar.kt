@@ -42,6 +42,8 @@ import com.ardia.design.Glass
 import com.ardia.design.GlassCircleButton
 import com.ardia.design.GlassMenu
 import com.ardia.design.GlassMenuDivider
+import com.ardia.design.GlassSearchField
+import com.ardia.design.GlassSpaceSwitcher
 import com.ardia.design.GlassPlusButton
 import com.ardia.design.LocalLiquidGlass
 import com.ardia.design.glassShadow
@@ -55,6 +57,8 @@ import com.ardia.design.TabsPalette
 import com.ardia.design.frosted
 import com.ardia.design.monospacedDigits
 import com.ardia.design.semibold
+
+class DeckSearch(val query: String, val change: (String) -> Unit)
 
 class DeckBarActions(
     val newTab: () -> Unit,
@@ -76,8 +80,30 @@ internal fun TabDeckBar(
     hasTabs: Boolean,
     actions: DeckBarActions,
     modifier: Modifier = Modifier,
+    search: DeckSearch? = null,
 ) {
     val style = LookFrosting.bar(look)
+    if (search != null) {
+        Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            DeckCircleButton(
+                symbol = if (showsSyncedTabs) ArdiaSymbols.laptopcomputer else ArdiaSymbols.archivebox,
+                label = stringResource(if (showsSyncedTabs) R.string.tabs_synced_tabs else R.string.tabs_archive),
+                backdrop = backdrop,
+                style = style,
+                action = actions.leading,
+            )
+            GlassSearchField(
+                value = search.query,
+                onValueChange = search.change,
+                placeholder = stringResource(R.string.tabs_search_tabs),
+                clearLabel = stringResource(R.string.tabs_clear_search),
+                backdrop = backdrop,
+                modifier = Modifier.weight(1f),
+            )
+            PlusButton(backdrop, style, isIncognito, canReopen, hasTabs, actions, compact = true)
+        }
+        return
+    }
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         DeckCircleButton(
             symbol = if (showsSyncedTabs) ArdiaSymbols.laptopcomputer else ArdiaSymbols.archivebox,
@@ -101,6 +127,7 @@ private fun PlusButton(
     canReopen: Boolean,
     hasTabs: Boolean,
     actions: DeckBarActions,
+    compact: Boolean = false,
 ) {
     var menu by remember { mutableStateOf(false) }
     GlassPlusButton(
@@ -109,6 +136,7 @@ private fun PlusButton(
         backdrop = backdrop,
         classicStyle = style,
         iconSize = 22.dp,
+        compact = compact,
         onClick = actions.newTab,
         onLongClick = { menu = true },
     ) {
@@ -213,6 +241,49 @@ internal fun DeckEmptyState(showsArchive: Boolean, openArchive: () -> Unit, modi
         if (showsArchive) {
             TextButton(onClick = openArchive, modifier = Modifier.padding(top = 6.dp).sizeIn(minHeight = 44.dp)) {
                 Text(stringResource(R.string.tabs_open_archive), style = ArdiaType.subheadline.semibold, color = Palette.formAccent.resolve(dark))
+            }
+        }
+    }
+}
+
+@Composable
+internal fun DeckTopBar(
+    spaces: List<String>,
+    selectedSpace: Int,
+    chooseSpace: (Int) -> Unit,
+    backdrop: FrostedBackdrop?,
+    look: ProfileLook,
+    showsSyncedTabs: Boolean,
+    hasTabs: Boolean,
+    isIncognito: Boolean,
+    actions: DeckBarActions,
+    modifier: Modifier = Modifier,
+) {
+    var menu by remember { mutableStateOf(false) }
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        if (selectedSpace >= 0) {
+            GlassSpaceSwitcher(spaces, selectedSpace, stringResource(R.string.tabs_switch_space), backdrop, chooseSpace)
+        }
+        Spacer(Modifier.weight(1f))
+        Box {
+            DeckCircleButton(ArdiaSymbols.ellipsis, stringResource(R.string.tabs_more), backdrop, LookFrosting.bar(look)) { menu = true }
+            GlassMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                val pick = { action: () -> Unit -> { menu = false; action() } }
+                MenuRow(stringResource(R.string.tabs_settings), ArdiaSymbols.gearshape, action = pick(actions.settings))
+                MenuRow(
+                    stringResource(if (showsSyncedTabs) R.string.tabs_synced_tabs else R.string.tabs_archive),
+                    if (showsSyncedTabs) ArdiaSymbols.laptopcomputer else ArdiaSymbols.archivebox,
+                    action = pick(actions.leading),
+                )
+                if (hasTabs) {
+                    GlassMenuDivider()
+                    MenuRow(
+                        stringResource(if (isIncognito) R.string.tabs_close_incognito_tabs else R.string.tabs_close_all_tabs),
+                        ArdiaSymbols.xmark,
+                        destructive = true,
+                        action = pick(actions.closeAll),
+                    )
+                }
             }
         }
     }

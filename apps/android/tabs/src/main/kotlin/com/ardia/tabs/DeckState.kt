@@ -253,6 +253,13 @@ class DeckState internal constructor(
         }
     }
 
+    fun openFound(id: String) {
+        if (phase != DeckPhase.Settled || id in lifting) return
+        hideArchiveCard()
+        menuFor = null
+        crossfadeOpen(id)
+    }
+
     private fun crossfadeOpen(id: String) {
         model.prepareToOpen(id)
         phase = DeckPhase.Closing(id)

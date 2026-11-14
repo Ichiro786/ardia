@@ -66,6 +66,10 @@ object Glass {
         rim = rim,
     )
 
+    val overPage = control.copy(
+        fallback = adaptive(ardiaColor(0xF4F4F7, 0.8f), ardiaColor(0x2A2A2E, 0.82f)),
+    )
+
     val classicPanel = FrostedStyle.sheet.copy(edge = FrostedStyle.glass.edge)
 
     val active = adaptive(ardiaColor(0x1C1C1E), ardiaColor(0xECECEF))
