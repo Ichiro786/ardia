@@ -1,5 +1,12 @@
 package com.ardia.browsing
 
+import com.ardia.design.glassRim
+import com.ardia.design.LocalArdiaDarkTheme
+import com.ardia.design.LocalLiquidGlass
+import com.ardia.design.GlassMenuItem
+import com.ardia.design.GlassMenuDivider
+import com.ardia.design.GlassMenu
+import com.ardia.design.Glass
 import android.graphics.Bitmap
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.animateColorAsState
@@ -19,11 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -64,7 +67,6 @@ import com.ardia.design.BrowsePalette
 import com.ardia.design.FaviconImage
 import com.ardia.design.LocalBarButtonScale
 import com.ardia.design.Motion
-import com.ardia.design.SystemPalette
 import com.ardia.design.TabsPalette
 import com.ardia.design.parseHexColor
 import com.ardia.store.BrowserTab
@@ -165,6 +167,7 @@ internal fun BottomBar(
                         .clip(CircleShape)
                         .background(BarPalette.plusFill.current)
                         .border(0.33.dp, BarPalette.controlEdge.current, CircleShape)
+                        .glassRim(CircleShape, LocalLiquidGlass.current, LocalArdiaDarkTheme.current)
                         .combinedClickable(interactionSource = interaction, indication = null, onClick = onPlus)
                         .semantics {
                             contentDescription = label
@@ -195,7 +198,8 @@ internal fun BottomBar(
                     Modifier
                         .size(chevron)
                         .background(BarPalette.chevronFill.current, CircleShape)
-                        .border(0.33.dp, BarPalette.controlEdge.current, CircleShape),
+                        .border(0.33.dp, BarPalette.controlEdge.current, CircleShape)
+                        .glassRim(CircleShape, LocalLiquidGlass.current, LocalArdiaDarkTheme.current),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(ArdiaSymbols.chevronUp, null, Modifier.size(16.dp * scale), tint = BrowsePalette.foregroundPrimary.current)
@@ -214,27 +218,24 @@ private fun RecentTabsMenu(
     onSelectTab: (String) -> Unit,
     onCloseTab: () -> Unit,
 ) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+    GlassMenu(expanded = expanded, onDismissRequest = onDismiss) {
         val recent = remember(order) { order.dropLast(1).takeLast(8).reversed() }
         for (tab in recent) {
-            DropdownMenuItem(
-                text = { Text(PageMenuText.tabTitle(tab, BrowserUrl.host(tab.url)), maxLines = 1) },
-                onClick = {
-                    onDismiss()
-                    onSelectTab(tab.id)
-                },
-            )
-        }
-        if (recent.isNotEmpty()) HorizontalDivider()
-        DropdownMenuItem(
-            text = { Text(stringResource(R.string.browsing_close_tab), color = SystemPalette.red.current) },
-            leadingIcon = { Icon(ArdiaSymbols.xmark, null, Modifier.size(18.dp), tint = SystemPalette.red.current) },
-            onClick = {
+            GlassMenuItem(PageMenuText.tabTitle(tab, BrowserUrl.host(tab.url)), null) {
                 onDismiss()
-                onCloseTab()
-            },
+                onSelectTab(tab.id)
+            }
+        }
+        if (recent.isNotEmpty()) GlassMenuDivider()
+        GlassMenuItem(
+            stringResource(R.string.browsing_close_tab),
+            ArdiaSymbols.xmark,
+            destructive = true,
             enabled = model.tabs.selectedTabId != null,
-        )
+        ) {
+            onDismiss()
+            onCloseTab()
+        }
     }
 }
 
@@ -245,9 +246,14 @@ internal fun Modifier.barPress(interaction: MutableInteractionSource): Modifier 
     LaunchedEffect(pressed) {
         if (pressed) view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
     }
+    val liquid = LocalLiquidGlass.current
     val scale by animateFloatAsState(
-        targetValue = if (pressed) BrowseLayout.barControlScale else 1f,
-        animationSpec = (if (pressed) Motion.barPressIn else Motion.barPressOut).spec(),
+        targetValue = if (pressed) (if (liquid) Glass.PRESSED_SCALE else BrowseLayout.barControlScale) else 1f,
+        animationSpec = when {
+            pressed -> if (liquid) Motion.glassPressIn else Motion.barPressIn
+            liquid -> Motion.glassRelease
+            else -> Motion.barPressOut
+        }.spec(),
         label = "barPress",
     )
     return graphicsLayer {

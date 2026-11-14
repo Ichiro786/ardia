@@ -1,5 +1,10 @@
 package com.ardia.browsing
 
+import com.ardia.design.glassRim
+import com.ardia.design.GlassMenuItem
+import com.ardia.design.GlassMenu
+import com.ardia.design.GlassAlert
+import com.ardia.design.Glass
 import android.os.Build
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedContent
@@ -28,13 +33,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -185,18 +186,18 @@ private fun PageMenuMain(model: AppModel, tab: BrowserTab, page: Page?, onShowSi
         }
     }
     if (confirmsTranslation) {
-        AlertDialog(
-            onDismissRequest = { confirmsTranslation = false },
-            title = { Text(stringResource(R.string.browsing_translate_title)) },
-            text = { Text(stringResource(R.string.browsing_translate_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmsTranslation = false
-                    page?.let(model::translate)
-                    onDismiss()
-                }) { Text(stringResource(R.string.browsing_translate)) }
+        GlassAlert(
+            title = stringResource(R.string.browsing_translate_title),
+            message = stringResource(R.string.browsing_translate_message),
+            confirmLabel = stringResource(R.string.browsing_translate),
+            cancelLabel = stringResource(R.string.browsing_cancel),
+            onConfirm = {
+                confirmsTranslation = false
+                page?.let(model::translate)
+                onDismiss()
             },
-            dismissButton = { TextButton(onClick = { confirmsTranslation = false }) { Text(stringResource(R.string.browsing_cancel)) } },
+            onDismissRequest = { confirmsTranslation = false },
+            destructive = false,
         )
     }
 }
@@ -369,6 +370,7 @@ private fun MenuGroup(content: @Composable ColumnScope.() -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
+            .glassRim(RoundedCornerShape(MenuLayout.innerRadius), Glass.isLiquid, LocalArdiaDarkTheme.current, Glass.groupRim)
             .clip(RoundedCornerShape(MenuLayout.innerRadius))
             .background(SystemPalette.secondaryGroupedBackground.current),
         content = content,
@@ -492,19 +494,13 @@ private fun SendRow(model: AppModel, tab: BrowserTab, isWebPage: Boolean, onDism
             MenuTags.SEND,
             accessory = { Icon(ArdiaSymbols.chevronUpChevronDown, null, Modifier.size(14.dp), tint = SystemPalette.tertiaryLabel.current) },
         ) { expanded = true }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        GlassMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             for (device in devices) {
-                DropdownMenuItem(
-                    text = { Text(device.name) },
-                    leadingIcon = {
-                        Icon(if (device.kind == SyncedDevice.MAC) ArdiaSymbols.laptopcomputer else ArdiaSymbols.iphone, null, Modifier.size(18.dp))
-                    },
-                    onClick = {
-                        expanded = false
-                        model.send(tab, device)
-                        onDismiss()
-                    },
-                )
+                GlassMenuItem(device.name, if (device.kind == SyncedDevice.MAC) ArdiaSymbols.laptopcomputer else ArdiaSymbols.iphone) {
+                    expanded = false
+                    model.send(tab, device)
+                    onDismiss()
+                }
             }
         }
     }
@@ -767,16 +763,12 @@ private fun <T> ChoiceSettingsRow(
                 Icon(ArdiaSymbols.chevronUpChevronDown, null, Modifier.padding(start = Spacing.hairline).size(13.dp), tint = SystemPalette.tertiaryLabel.current)
             },
         ) { SettingsRowLabel(title, icon, tint) }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        GlassMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             for (option in options) {
-                DropdownMenuItem(
-                    text = { Text(label(option)) },
-                    trailingIcon = if (option == selected) ({ Icon(ArdiaSymbols.checkmark, null, Modifier.size(16.dp)) }) else null,
-                    onClick = {
-                        expanded = false
-                        onSelect(option)
-                    },
-                )
+                GlassMenuItem(label(option), if (option == selected) ArdiaSymbols.checkmark else null, selected = option == selected) {
+                    expanded = false
+                    onSelect(option)
+                }
             }
         }
     }

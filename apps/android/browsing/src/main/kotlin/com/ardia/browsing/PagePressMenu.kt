@@ -1,14 +1,14 @@
 package com.ardia.browsing
 
+import com.ardia.design.GlassMenuItem
+import com.ardia.design.GlassMenuDivider
+import com.ardia.design.GlassMenu
 import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -70,22 +70,22 @@ internal fun PagePressMenu(model: AppModel, press: BrowseSession.PagePress) {
     val target = press.target
     val link = PressMenuItems.linkUrl(target)
     Box(Modifier.offset { IntOffset(press.x.roundToInt(), press.y.roundToInt()) }.size(1.dp)) {
-        DropdownMenu(expanded = true, onDismissRequest = dismiss, modifier = Modifier.testTag(BrowsingTags.PRESS_MENU).widthIn(max = 300.dp)) {
+        GlassMenu(expanded = true, onDismissRequest = dismiss, modifier = Modifier.testTag(BrowsingTags.PRESS_MENU)) {
             Text(
                 PressMenuItems.heading(target),
                 style = ArdiaType.footnote,
                 color = SystemPalette.secondaryLabel.current,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp).widthIn(max = 260.dp),
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp).widthIn(max = 250.dp),
             )
             for (group in PressMenuItems.of(target)) {
-                HorizontalDivider()
+                GlassMenuDivider()
                 for (action in group) {
                     val (title, icon) = pressLabel(action)
-                    DropdownMenuItem(
-                        text = { Text(title) },
-                        leadingIcon = { Icon(icon, null, Modifier.size(18.dp)) },
+                    GlassMenuItem(
+                        title,
+                        icon,
                         onClick = {
                             dismiss()
                             when (action) {

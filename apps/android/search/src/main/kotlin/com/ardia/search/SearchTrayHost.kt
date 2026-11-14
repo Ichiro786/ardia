@@ -45,6 +45,7 @@ import com.ardia.design.LocalReduceMotion
 import com.ardia.design.Motion
 import com.ardia.design.Spacing
 import com.ardia.design.rememberTrayDragState
+import com.ardia.design.LocalLiquidGlass
 import com.ardia.design.trayDismissDrag
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
@@ -58,6 +59,7 @@ fun SearchTrayHost(model: AppModel, modifier: Modifier = Modifier) {
     val scope = rememberMainScope()
     val density = LocalDensity.current
     val reduceMotion = LocalReduceMotion.current
+    val liquid = LocalLiquidGlass.current
     val drag = rememberTrayDragState()
     val ime = WindowInsets.ime
     val imeSource = WindowInsets.imeAnimationSource
@@ -72,7 +74,7 @@ fun SearchTrayHost(model: AppModel, modifier: Modifier = Modifier) {
     LaunchedEffect(request, presentation) {
         if (request != null) {
             drag.reset()
-            presentation.present(request, model.mayFocusSearch, if (reduceMotion) Motion.reducedSettle else Motion.searchRise)
+            presentation.present(request, model.mayFocusSearch, if (reduceMotion) Motion.reducedSettle else if (liquid) Motion.glassRise else Motion.searchRise)
             model.browse.trayHoldsKeyboard = true
         } else {
             presentation.beginClosing(if (reduceMotion) Motion.reducedFade else Motion.trayDismiss) {

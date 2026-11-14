@@ -52,6 +52,18 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.animation.core.animateFloatAsState
 
 object SettingsChrome {
     val topBarColor: Color
@@ -139,10 +151,12 @@ fun SettingsGroup(modifier: Modifier = Modifier, header: String? = null, footer:
                 modifier = Modifier.padding(start = SettingsLayout.rowInset, bottom = Spacing.tight).semantics { heading() },
             )
         }
+        val groupShape = RoundedCornerShape(SettingsLayout.groupRadius)
         Column(
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(SettingsLayout.groupRadius))
+                .glassRim(groupShape, Glass.isLiquid, LocalArdiaDarkTheme.current, Glass.groupRim)
+                .clip(groupShape)
                 .background(SystemPalette.secondaryGroupedBackground.current),
             content = content,
         )
@@ -273,6 +287,10 @@ fun AppIconPreview(painter: Painter, modifier: Modifier = Modifier, side: Dp = S
 
 @Composable
 fun SettingsSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?, modifier: Modifier = Modifier, enabled: Boolean = true) {
+    if (Glass.isLiquid) {
+        GlassSwitch(checked, onCheckedChange, modifier, enabled)
+        return
+    }
     val green = SystemPalette.green.current
     Switch(
         checked = checked,
@@ -302,4 +320,71 @@ fun rememberSettingsHeroHidden(state: LazyListState): State<Boolean> {
 fun rememberSettingsHeroHidden(state: ScrollState): State<Boolean> {
     val threshold = with(LocalDensity.current) { SettingsLayout.heroScrollThreshold.roundToPx() }
     return remember(state, threshold) { derivedStateOf { state.value > threshold } }
+}
+
+@Composable
+private fun GlassSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?, modifier: Modifier, enabled: Boolean) {
+    val dark = LocalArdiaDarkTheme.current
+    val reduceMotion = LocalReduceMotion.current
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val travel by animateFloatAsState(
+        targetValue = if (checked) 1f else 0f,
+        animationSpec = (if (reduceMotion) Motion.reducedFade else Motion.glassToggle).spec(),
+        label = "switchTravel",
+    )
+    val stretch by animateFloatAsState(
+        targetValue = if (pressed && !reduceMotion) 1f else 0f,
+        animationSpec = (if (pressed) Motion.glassPressIn else Motion.glassRelease).spec(),
+        label = "switchStretch",
+    )
+    val track by animateColorAsState(
+        targetValue = if (checked) SystemPalette.green.resolve(dark) else SystemPalette.tertiaryFill.resolve(dark),
+        animationSpec = Motion.surfaceFade.spec(),
+        label = "switchTrack",
+    )
+    val toggle = if (onCheckedChange != null) {
+        Modifier.toggleable(value = checked, interactionSource = interaction, indication = null, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange)
+    } else {
+        Modifier
+    }
+    val rimTop = Glass.rim.highlight.resolve(dark)
+    Box(
+        modifier
+            .then(toggle)
+            .size(GlassSwitchMetrics.width, GlassSwitchMetrics.height)
+            .graphicsLayer { alpha = if (enabled) 1f else 0.45f }
+            .drawBehind {
+                val height = size.height
+                val radius = CornerRadius(height / 2, height / 2)
+                drawRoundRect(track, cornerRadius = radius)
+                drawRoundRect(
+                    Brush.verticalGradient(0f to rimTop.copy(alpha = rimTop.alpha * 0.5f), 0.5f to Color.Transparent),
+                    cornerRadius = radius,
+                    style = Stroke(1.dp.toPx()),
+                )
+                val inset = GlassSwitchMetrics.inset.toPx()
+                val thumbHeight = height - inset * 2
+                val thumbWidth = thumbHeight + GlassSwitchMetrics.stretch.toPx() * stretch
+                val start = inset
+                val end = size.width - inset - thumbWidth
+                val x = start + (end - start) * travel.coerceIn(-GlassSwitchMetrics.OVERSHOOT, 1f + GlassSwitchMetrics.OVERSHOOT)
+                val thumbRadius = CornerRadius(thumbHeight / 2, thumbHeight / 2)
+                drawRoundRect(
+                    Color.Black.copy(alpha = 0.14f),
+                    topLeft = Offset(x, inset + 1.dp.toPx()),
+                    size = Size(thumbWidth, thumbHeight),
+                    cornerRadius = thumbRadius,
+                )
+                drawRoundRect(Color.White, topLeft = Offset(x, inset), size = Size(thumbWidth, thumbHeight), cornerRadius = thumbRadius)
+            },
+    )
+}
+
+private object GlassSwitchMetrics {
+    val width = 51.dp
+    val height = 31.dp
+    val inset = 2.dp
+    val stretch = 7.dp
+    const val OVERSHOOT = 0.05f
 }

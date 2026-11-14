@@ -1,5 +1,6 @@
 package com.ardia.search
 
+import com.ardia.design.Glass
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -349,7 +350,7 @@ private fun GlassPill(text: String, icon: ImageVector?, frost: FrostedBackdrop?,
         modifier
             .fillMaxWidth()
             .heightIn(min = 50.dp)
-            .frosted(frost, RoundedCornerShape(50), FrostedStyle.glass)
+            .frosted(frost, RoundedCornerShape(50), Glass.control(FrostedStyle.glass))
             .clickable(onClick = onClick)
             .clearAndSetSemantics {
                 contentDescription = text
@@ -373,7 +374,7 @@ private fun GlassCircle(icon: ImageVector, label: String, frost: FrostedBackdrop
     Box(
         modifier
             .size(44.dp)
-            .frosted(frost, CircleShape, FrostedStyle.glass)
+            .frosted(frost, CircleShape, Glass.control(FrostedStyle.glass))
             .clickable(onClick = onClick)
             .clearAndSetSemantics {
                 contentDescription = label

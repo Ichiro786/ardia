@@ -48,6 +48,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
@@ -70,7 +72,7 @@ private val menuEdge = 10.dp
 private const val MENU_FOLDED_SCALE = 0.8f
 
 @Composable
-fun GlassMenu(expanded: Boolean, onDismissRequest: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+fun GlassMenu(expanded: Boolean, onDismissRequest: () -> Unit, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     val visibility = remember { MutableTransitionState(false) }
     visibility.targetState = expanded
     if (!visibility.currentState && !visibility.targetState) return
@@ -98,7 +100,7 @@ fun GlassMenu(expanded: Boolean, onDismissRequest: () -> Unit, content: @Composa
         ) { if (it) 1f else 0f }
         Box(Modifier.padding(menuShadowRoom)) {
             Column(
-                Modifier
+                modifier
                     .graphicsLayer {
                         scaleX = scale
                         scaleY = scale
@@ -123,6 +125,8 @@ fun GlassMenuItem(
     icon: ImageVector?,
     destructive: Boolean = false,
     enabled: Boolean = true,
+    modifier: Modifier = Modifier,
+    selected: Boolean? = null,
     onClick: () -> Unit,
 ) {
     val dark = LocalArdiaDarkTheme.current
@@ -136,13 +140,14 @@ fun GlassMenuItem(
         label = "glassMenuRow",
     )
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
             .padding(horizontal = 6.dp)
             .springPress(interaction, Glass.PRESSED_ROW_SCALE)
             .clip(menuRowShape)
             .background(highlight)
             .clickable(interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick)
+            .then(if (selected != null) Modifier.semantics { this.selected = selected } else Modifier)
             .heightIn(min = 46.dp)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -153,6 +158,16 @@ fun GlassMenuItem(
             Icon(icon, null, Modifier.size(18.dp), tint = color)
         }
     }
+}
+
+@Composable
+fun GlassMenuHeading(text: String) {
+    Text(
+        text,
+        style = ArdiaType.footnote,
+        color = SystemPalette.secondaryLabel.current,
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
+    )
 }
 
 @Composable
@@ -195,6 +210,7 @@ fun GlassAlert(
     onConfirm: () -> Unit,
     onDismissRequest: () -> Unit,
     destructive: Boolean = true,
+    confirmModifier: Modifier = Modifier,
 ) {
     Dialog(onDismissRequest = onDismissRequest, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         val dark = LocalArdiaDarkTheme.current
@@ -216,7 +232,7 @@ fun GlassAlert(
         ) { if (it || reduceMotion) 1f else 0.88f }
         val alpha by transition.animateFloat(transitionSpec = { Motion.surfaceFade.spec() }, label = "glassAlertAlpha") { if (it) 1f else 0f }
         val shape = RoundedCornerShape(30.dp)
-        val confirmColor = (if (destructive) SystemPalette.red else SystemPalette.label).resolve(dark)
+        val confirmColor = (if (destructive) SystemPalette.red else Palette.formAccent).resolve(dark)
         Column(
             Modifier
                 .padding(28.dp)
@@ -239,7 +255,7 @@ fun GlassAlert(
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 GlassPillButton(cancelLabel, SystemPalette.label.resolve(dark), Modifier.weight(1f), onDismissRequest)
-                GlassPillButton(confirmLabel, confirmColor, Modifier.weight(1f), onConfirm)
+                GlassPillButton(confirmLabel, confirmColor, Modifier.weight(1f).then(confirmModifier), onConfirm)
             }
         }
     }

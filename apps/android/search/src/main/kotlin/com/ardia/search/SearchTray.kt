@@ -1,5 +1,8 @@
 package com.ardia.search
 
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.SolidColor
+import com.ardia.design.Glass
 import android.content.Context
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
@@ -248,6 +251,7 @@ private fun TrayPanel(
     )
     val radius = BrowseLayout.sheetTopRadius
     val shape = remember { RoundedCornerShape(topStart = radius, topEnd = radius) }
+    val rimColor = if (Glass.isLiquid) Glass.rim.highlight.resolve(LocalArdiaDarkTheme.current || isIncognito) else null
     Column(
         modifier
             .fillMaxWidth()
@@ -263,7 +267,12 @@ private fun TrayPanel(
                 val path = Path().apply {
                     addRoundRect(RoundRect(0f, 0f, size.width, extended, CornerRadius(corner, corner), CornerRadius(corner, corner), CornerRadius.Zero, CornerRadius.Zero))
                 }
-                onDrawBehind { drawPath(path, surface.value) }
+                val rimWidth = 1.dp.toPx()
+                val rimBrush = rimColor?.let { Brush.verticalGradient(listOf(it, Color.Transparent), startY = 0f, endY = corner * 1.6f) }
+                onDrawBehind {
+                    drawPath(path, surface.value)
+                    if (rimBrush != null) drawPath(path, rimBrush, style = Stroke(rimWidth))
+                }
             },
     ) {
         TrayHeader(model, controller, isIncognito, dismissDrag)
@@ -294,6 +303,11 @@ private fun TrayHeader(model: AppModel, controller: TrayController, isIncognito:
     val fieldHeight = BrowseLayout.searchFieldHeight * fontScale
     val fill = if (isIncognito) BrowsePalette.incognitoField else BrowsePalette.fieldFill.current
     val stroke = if (isIncognito) Color.White.copy(alpha = 0.1f) else BrowsePalette.fieldStroke.current
+    val fieldEdge = if (Glass.isLiquid) {
+        Brush.verticalGradient(listOf(Glass.rim.highlight.resolve(LocalArdiaDarkTheme.current || isIncognito), stroke))
+    } else {
+        SolidColor(stroke)
+    }
     Box(
         Modifier
             .fillMaxWidth()
@@ -306,7 +320,7 @@ private fun TrayHeader(model: AppModel, controller: TrayController, isIncognito:
                 .fillMaxWidth()
                 .heightIn(min = fieldHeight)
                 .drawBehind { drawRoundRect(fill, cornerRadius = CornerRadius(size.height / 2, size.height / 2)) }
-                .border(1.dp, stroke, CircleShape)
+                .border(1.dp, fieldEdge, CircleShape)
                 .padding(start = 18.dp, end = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

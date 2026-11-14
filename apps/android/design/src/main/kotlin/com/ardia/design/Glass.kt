@@ -7,9 +7,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
@@ -30,6 +34,20 @@ object Glass {
         highlight = adaptive(Color.White.copy(alpha = 0.95f), Color.White.copy(alpha = 0.34f)),
         lowlight = adaptive(Color.Black.copy(alpha = 0.05f), Color.White.copy(alpha = 0.07f)),
         sheen = adaptive(Color.White.copy(alpha = 0.24f), Color.White.copy(alpha = 0.06f)),
+    )
+
+    val groupRim = GlassRim(
+        highlight = adaptive(Color.White.copy(alpha = 0.9f), Color.White.copy(alpha = 0.16f)),
+        lowlight = adaptive(Color.Black.copy(alpha = 0.04f), Color.White.copy(alpha = 0.03f)),
+        sheen = adaptive(Color.Transparent, Color.Transparent),
+        width = 0.75.dp,
+    )
+
+    val sheetRim = GlassRim(
+        highlight = adaptive(Color.White, Color.White.copy(alpha = 0.3f)),
+        lowlight = adaptive(Color.Transparent, Color.Transparent),
+        sheen = adaptive(Color.Transparent, Color.Transparent),
+        width = 1.dp,
     )
 
     val control = FrostedStyle(
@@ -89,6 +107,24 @@ fun Modifier.glassShadow(shape: Shape, enabled: Boolean, dark: Boolean): Modifie
     if (!enabled) return this
     val color = Glass.shadow.resolve(dark)
     return shadow(Glass.shadowElevation, shape, clip = false, ambientColor = color, spotColor = color)
+}
+
+fun Modifier.glassRim(shape: Shape, enabled: Boolean, dark: Boolean, rim: GlassRim = Glass.rim): Modifier {
+    if (!enabled) return this
+    return drawWithCache {
+        val outline = shape.createOutline(size, layoutDirection, this)
+        val highlight = rim.highlight.resolve(dark)
+        val stroke = Brush.verticalGradient(
+            0f to highlight,
+            0.3f to highlight.copy(alpha = highlight.alpha * 0.15f),
+            1f to rim.lowlight.resolve(dark),
+        )
+        val width = rim.width.toPx()
+        onDrawWithContent {
+            drawContent()
+            drawOutline(outline, stroke, style = Stroke(width))
+        }
+    }
 }
 
 fun Modifier.springPress(interactionSource: InteractionSource, pressedScale: Float = Glass.PRESSED_SCALE): Modifier =
