@@ -40,6 +40,7 @@ object MenuLayout {
     val innerRadius = sheetRadius - inset
     val capsuleHeight = innerRadius * 2
     val tileHeight = 68.dp
+    val iconTileHeight = 46.dp
     val rowHeight = 50.dp
 }
 

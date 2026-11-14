@@ -343,9 +343,11 @@ private fun RowScope.Tile(item: TileItem, enabled: Boolean) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val ink = if (enabled) SystemPalette.label.current else SystemPalette.tertiaryLabel.current
+    val liquid = Glass.isLiquid
     Column(
         Modifier
             .testTag(item.tag)
+            .semantics(mergeDescendants = true) { contentDescription = item.title }
             .weight(1f)
             .graphicsLayer {
                 val scale = if (pressed) 0.94f else 1f
@@ -355,13 +357,13 @@ private fun RowScope.Tile(item: TileItem, enabled: Boolean) {
             .clip(RoundedCornerShape(MenuLayout.innerRadius))
             .background(SystemPalette.secondaryGroupedBackground.current)
             .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = item.action)
-            .heightIn(min = MenuLayout.tileHeight)
+            .heightIn(min = if (liquid) MenuLayout.iconTileHeight else MenuLayout.tileHeight)
             .padding(vertical = Spacing.small),
         verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(item.icon, null, Modifier.size(22.dp), tint = ink)
-        Text(item.title, style = ArdiaType.footnote.medium, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (!liquid) Text(item.title, style = ArdiaType.footnote.medium, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -379,11 +381,13 @@ private fun MenuGroup(content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 private fun MenuDivider() {
-    HorizontalDivider(Modifier.padding(start = Spacing.page + iconSlot + Spacing.small), thickness = 0.5.dp, color = SystemPalette.separator.current)
+    val start = if (Glass.isLiquid) Spacing.page else Spacing.page + iconSlot + Spacing.small
+    HorizontalDivider(Modifier.padding(start = start), thickness = 0.5.dp, color = SystemPalette.separator.current)
 }
 
 @Composable
 private fun RowIcon(icon: ImageVector) {
+    if (Glass.isLiquid) return
     Box(Modifier.width(iconSlot), contentAlignment = Alignment.Center) {
         Icon(icon, null, Modifier.size(20.dp), tint = SystemPalette.secondaryLabel.current)
     }

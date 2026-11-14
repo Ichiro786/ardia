@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.ardia.appmodel.AppModel
 import com.ardia.appmodel.SettingsRoute
 import com.ardia.design.ArdiaSymbols
+import com.ardia.design.Glass
 import com.ardia.design.ArdiaType
 import com.ardia.design.ColorChoiceRows
 import com.ardia.design.SettingsGroup
@@ -261,7 +262,7 @@ private fun ShortcutButton(title: String, icon: ImageVector, onClick: () -> Unit
         horizontalArrangement = Arrangement.spacedBy(Spacing.tight, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, null, Modifier.size(20.dp), tint = SystemPalette.label.current)
+        if (!Glass.isLiquid) Icon(icon, null, Modifier.size(20.dp), tint = SystemPalette.label.current)
         Text(title, style = ArdiaType.body.medium, color = SystemPalette.label.current)
     }
 }
