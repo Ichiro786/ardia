@@ -85,4 +85,5 @@ object Motion {
     val glassFold = ArdiaSpring(response = 0.22f, dampingFraction = 1f)
     val glassRise = ArdiaSpring(response = 0.44f, dampingFraction = 0.78f)
     val glassToggle = ArdiaSpring(response = 0.34f, dampingFraction = 0.55f)
+    val glassPush = ArdiaSpring(response = 0.42f, dampingFraction = 0.86f)
 }

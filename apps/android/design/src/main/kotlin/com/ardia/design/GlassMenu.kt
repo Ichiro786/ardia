@@ -1,9 +1,5 @@
 package com.ardia.design
 
-import android.os.Build
-import android.view.Window
-import android.view.WindowManager
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloat
@@ -12,7 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -32,7 +27,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,20 +40,15 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
@@ -198,91 +187,5 @@ private class GlassMenuPosition(private val density: Density, private val onOrig
         val pivotX = if (width > 0) ((anchorBounds.center.x - x).toFloat() / width).coerceIn(0f, 1f) else 0.5f
         onOrigin(TransformOrigin(pivotX, if (opensDown) 0f else 1f))
         return IntOffset(x - room, y - room)
-    }
-}
-
-@Composable
-fun GlassAlert(
-    title: String,
-    message: String?,
-    confirmLabel: String,
-    cancelLabel: String,
-    onConfirm: () -> Unit,
-    onDismissRequest: () -> Unit,
-    destructive: Boolean = true,
-    confirmModifier: Modifier = Modifier,
-) {
-    Dialog(onDismissRequest = onDismissRequest, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        val dark = LocalArdiaDarkTheme.current
-        val liquid = LocalLiquidGlass.current
-        val reduceMotion = LocalReduceMotion.current
-        val view = LocalView.current
-        val blurPx = with(LocalDensity.current) { 28.dp.roundToPx() }
-        DisposableEffect(view, liquid) {
-            val window = (view.parent as? DialogWindowProvider)?.window
-            if (window != null && liquid && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) blurBehind(window, blurPx)
-            onDispose {}
-        }
-        val appear = remember { MutableTransitionState(false) }
-        LaunchedEffect(Unit) { appear.targetState = true }
-        val transition = rememberTransition(appear, label = "glassAlert")
-        val scale by transition.animateFloat(
-            transitionSpec = { if (reduceMotion) Motion.reducedFade.spec() else Motion.glassPop.spec() },
-            label = "glassAlertScale",
-        ) { if (it || reduceMotion) 1f else 0.88f }
-        val alpha by transition.animateFloat(transitionSpec = { Motion.surfaceFade.spec() }, label = "glassAlertAlpha") { if (it) 1f else 0f }
-        val shape = RoundedCornerShape(30.dp)
-        val confirmColor = (if (destructive) SystemPalette.red else Palette.formAccent).resolve(dark)
-        Column(
-            Modifier
-                .padding(28.dp)
-                .widthIn(max = 320.dp)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    this.alpha = alpha.coerceIn(0f, 1f)
-                }
-                .glassShadow(shape, liquid, dark)
-                .frosted(null, shape, Glass.panel())
-                .padding(start = 22.dp, end = 22.dp, top = 24.dp, bottom = 18.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(title, style = ArdiaType.headline, color = SystemPalette.label.resolve(dark), textAlign = TextAlign.Center)
-            if (message != null) {
-                Text(message, style = ArdiaType.subheadline, color = SystemPalette.secondaryLabel.resolve(dark), textAlign = TextAlign.Center)
-            }
-            Spacer(Modifier.height(10.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                GlassPillButton(cancelLabel, SystemPalette.label.resolve(dark), Modifier.weight(1f), onDismissRequest)
-                GlassPillButton(confirmLabel, confirmColor, Modifier.weight(1f).then(confirmModifier), onConfirm)
-            }
-        }
-    }
-}
-
-@Composable
-fun GlassPillButton(label: String, color: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val interaction = remember { MutableInteractionSource() }
-    Box(
-        modifier
-            .springPress(interaction)
-            .clip(RoundedCornerShape(50))
-            .background(Glass.chip.current)
-            .clickable(interaction, indication = null, role = Role.Button, onClick = onClick)
-            .heightIn(min = 48.dp)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, style = ArdiaType.body.semibold, color = color, textAlign = TextAlign.Center, maxLines = 2)
-    }
-}
-
-@RequiresApi(Build.VERSION_CODES.S)
-private fun blurBehind(window: Window, radius: Int) {
-    window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-    window.attributes = window.attributes.apply {
-        blurBehindRadius = radius
-        dimAmount = 0.3f
     }
 }

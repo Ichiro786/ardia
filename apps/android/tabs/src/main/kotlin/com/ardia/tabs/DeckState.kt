@@ -46,6 +46,7 @@ class DeckState internal constructor(
     private val haptics: Haptics,
 ) {
     var reduceMotion: Boolean = false
+    var liquid: Boolean = true
     var geometry: TabsDeckGeometry by mutableStateOf(TabsDeckGeometry(DeckSize(1.0, 1.0), 0.0, 0.0))
 
     var order: List<String> by mutableStateOf(emptyList())
@@ -157,8 +158,8 @@ class DeckState internal constructor(
             scaleProgress.snapTo(0f)
             positionProgress.snapTo(0f)
             coroutineScope {
-                launch { scaleProgress.animateTo(1f, TabsMotion.openScale.spec()) }
-                positionProgress.animateTo(1f, TabsMotion.openPosition.spec())
+                launch { scaleProgress.animateTo(1f, (if (liquid) TabsMotion.glassOpenScale else TabsMotion.openScale).spec()) }
+                positionProgress.animateTo(1f, (if (liquid) TabsMotion.glassOpenPosition else TabsMotion.openPosition).spec())
             }
             phase = DeckPhase.Settled
             offerArchiveCard()
@@ -244,8 +245,9 @@ class DeckState internal constructor(
         }
         scope.launch {
             coroutineScope {
-                launch { scaleProgress.animateTo(0f, TabsMotion.expand.spec()) }
-                positionProgress.animateTo(0f, TabsMotion.expand.spec())
+                val expand = if (liquid) TabsMotion.glassExpand else TabsMotion.expand
+                launch { scaleProgress.animateTo(0f, expand.spec()) }
+                positionProgress.animateTo(0f, expand.spec())
             }
             model.openTab(id)
         }

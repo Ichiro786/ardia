@@ -12,13 +12,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -32,14 +29,20 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.ardia.browser.Page
 import com.ardia.browser.PageRequest
 import com.ardia.browser.SitePermission
 import com.ardia.design.ArdiaSymbols
+import com.ardia.design.GlassChoiceRow
+import com.ardia.design.GlassDialog
+import com.ardia.design.GlassDialogActions
+import com.ardia.design.GlassDialogText
+import com.ardia.design.GlassPillButton
+import com.ardia.design.GlassTextField
 import com.ardia.design.Spacing
+import com.ardia.design.SystemPalette
 import java.io.File
 import java.util.UUID
 
@@ -118,46 +121,35 @@ private fun RequestDialog(request: PageRequest) {
         else -> ok to { request.answer(PageRequest.Answer.Accepted) }
     }
     val cancellable = request.kind !is PageRequest.Kind.Alert
-    AlertDialog(
-        modifier = Modifier.testTag(BrowsingTags.REQUEST),
-        onDismissRequest = { request.dismiss() },
-        title = { Text(title) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
-                if (message != null) Text(message)
-                when (request.kind) {
-                    is PageRequest.Kind.Prompt -> OutlinedTextField(
-                        value = text,
-                        onValueChange = { text = it },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth().testTag("request.text"),
-                    )
-                    is PageRequest.Kind.HttpAuthentication -> {
-                        OutlinedTextField(
-                            value = user,
-                            onValueChange = { user = it },
-                            singleLine = true,
-                            label = { Text(stringResource(R.string.browsing_user_name)) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false),
-                            modifier = Modifier.fillMaxWidth().testTag("request.user"),
-                        )
-                        OutlinedTextField(
-                            value = password,
-                            onValueChange = { password = it },
-                            singleLine = true,
-                            label = { Text(stringResource(R.string.browsing_password)) },
-                            visualTransformation = PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                            modifier = Modifier.fillMaxWidth().testTag("request.password"),
-                        )
-                    }
-                    else -> Unit
-                }
+    GlassDialog(onDismissRequest = { request.dismiss() }, modifier = Modifier.testTag(BrowsingTags.REQUEST)) {
+        GlassDialogText(title, message)
+        when (request.kind) {
+            is PageRequest.Kind.Prompt -> GlassTextField(
+                value = text,
+                onValueChange = { text = it },
+                modifier = Modifier.padding(top = Spacing.small).testTag("request.text"),
+            )
+            is PageRequest.Kind.HttpAuthentication -> {
+                GlassTextField(
+                    value = user,
+                    onValueChange = { user = it },
+                    placeholder = stringResource(R.string.browsing_user_name),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false),
+                    modifier = Modifier.padding(top = Spacing.small).testTag("request.user"),
+                )
+                GlassTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    placeholder = stringResource(R.string.browsing_password),
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.testTag("request.password"),
+                )
             }
-        },
-        confirmButton = { TextButton(onClick = confirm) { Text(confirmTitle) } },
-        dismissButton = if (cancellable) ({ TextButton(onClick = { request.dismiss() }) { Text(cancel) } }) else null,
-    )
+            else -> Unit
+        }
+        GlassDialogActions(confirmTitle, confirm, if (cancellable) cancel else null, { request.dismiss() })
+    }
 }
 
 @Composable
@@ -172,13 +164,15 @@ private fun PermissionRequest(request: PageRequest, permission: SitePermission) 
     LaunchedEffect(request.id) { if (!systemGranted) launcher.launch(needed) }
     if (!systemGranted) return
     val title = remember(request.id) { request.title(context) }
-    AlertDialog(
-        modifier = Modifier.testTag(BrowsingTags.REQUEST),
-        onDismissRequest = { request.dismiss() },
-        title = { Text(title) },
-        confirmButton = { TextButton(onClick = { request.answer(PageRequest.Answer.Accepted) }) { Text(stringResource(R.string.browsing_allow)) } },
-        dismissButton = { TextButton(onClick = { request.dismiss() }) { Text(stringResource(R.string.browsing_dont_allow)) } },
-    )
+    GlassDialog(onDismissRequest = { request.dismiss() }, modifier = Modifier.testTag(BrowsingTags.REQUEST)) {
+        GlassDialogText(title, null)
+        GlassDialogActions(
+            stringResource(R.string.browsing_allow),
+            { request.answer(PageRequest.Answer.Accepted) },
+            stringResource(R.string.browsing_dont_allow),
+            { request.dismiss() },
+        )
+    }
 }
 
 private enum class Capture { Photo, Video }
@@ -251,43 +245,30 @@ private fun FileChooserRequest(request: PageRequest, kind: PageRequest.Kind.File
     }
     if (!choosing) return
     val title = remember(request.id) { request.title(context) }
-    AlertDialog(
-        modifier = Modifier.testTag(BrowsingTags.REQUEST),
-        onDismissRequest = { request.dismiss() },
-        title = { Text(title) },
-        text = {
-            Column {
-                if (plan.offersPhoto) {
-                    ChoiceButton(stringResource(R.string.browsing_take_photo), BrowsingSymbols.camera) {
-                        choosing = false
-                        capture(Capture.Photo)
-                    }
-                }
-                if (plan.offersVideo) {
-                    ChoiceButton(stringResource(R.string.browsing_record_video), BrowsingSymbols.video) {
-                        choosing = false
-                        capture(Capture.Video)
-                    }
-                }
-                ChoiceButton(
-                    stringResource(if (kind.allowsMultiple) R.string.browsing_choose_files else R.string.browsing_choose_file),
-                    ArdiaSymbols.folderFill,
-                ) {
+    GlassDialog(onDismissRequest = { request.dismiss() }, modifier = Modifier.testTag(BrowsingTags.REQUEST)) {
+        GlassDialogText(title, null)
+        Column(Modifier.padding(top = Spacing.small), verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
+            if (plan.offersPhoto) {
+                GlassChoiceRow(stringResource(R.string.browsing_take_photo), BrowsingSymbols.camera) {
                     choosing = false
-                    documents()
+                    capture(Capture.Photo)
                 }
             }
-        },
-        confirmButton = {},
-        dismissButton = { TextButton(onClick = { request.dismiss() }) { Text(stringResource(R.string.browsing_cancel)) } },
-    )
-}
-
-@Composable
-private fun ChoiceButton(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
-    TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Icon(icon, null, Modifier.size(20.dp))
-        androidx.compose.foundation.layout.Spacer(Modifier.size(Spacing.small))
-        Text(title, modifier = Modifier.weight(1f))
+            if (plan.offersVideo) {
+                GlassChoiceRow(stringResource(R.string.browsing_record_video), BrowsingSymbols.video) {
+                    choosing = false
+                    capture(Capture.Video)
+                }
+            }
+            GlassChoiceRow(
+                stringResource(if (kind.allowsMultiple) R.string.browsing_choose_files else R.string.browsing_choose_file),
+                ArdiaSymbols.folderFill,
+            ) {
+                choosing = false
+                documents()
+            }
+        }
+        Spacer(Modifier.height(Spacing.small))
+        GlassPillButton(stringResource(R.string.browsing_cancel), SystemPalette.label.current, Modifier.fillMaxWidth()) { request.dismiss() }
     }
 }

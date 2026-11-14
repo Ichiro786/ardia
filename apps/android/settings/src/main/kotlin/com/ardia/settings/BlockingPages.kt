@@ -28,6 +28,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -69,6 +72,10 @@ import com.ardia.blocking.FilterListInfo
 import com.ardia.blocking.FilterListState
 import com.ardia.design.ArdiaSymbols
 import com.ardia.design.ArdiaType
+import com.ardia.design.Glass
+import com.ardia.design.LocalArdiaDarkTheme
+import com.ardia.design.Radius
+import com.ardia.design.glassRim
 import com.ardia.design.Palette
 import com.ardia.design.ProfileBackdrop
 import com.ardia.design.SettingsGroup
@@ -365,10 +372,16 @@ fun AddFilterListSheet(nav: SettingsNav, onDismiss: () -> Unit) {
     }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
+    val dark = LocalArdiaDarkTheme.current
+    val liquid = Glass.isLiquid
+    val sheetShape = RoundedCornerShape(topStart = Radius.sheet, topEnd = Radius.sheet)
     ModalBottomSheet(
         onDismissRequest = { if (!adding) onDismiss() },
         sheetState = sheetState,
+        modifier = Modifier.glassRim(sheetShape, liquid, dark, Glass.sheetRim),
+        shape = sheetShape,
         containerColor = SystemPalette.groupedBackground.current,
+        scrimColor = if (liquid) Color.Black.copy(alpha = 0.22f) else BottomSheetDefaults.ScrimColor,
         dragHandle = null,
     ) {
         Column(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.ime)) {

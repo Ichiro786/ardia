@@ -45,6 +45,7 @@ import com.ardia.design.DeckSize
 import com.ardia.design.LocalArdiaDarkTheme
 import com.ardia.design.GlassAlert
 import com.ardia.design.LocalBarButtonScale
+import com.ardia.design.LocalLiquidGlass
 import com.ardia.design.LocalProfileLook
 import com.ardia.design.LocalReduceMotion
 import com.ardia.design.Spacing
@@ -66,6 +67,7 @@ fun TabSwitcherView(model: AppModel, modifier: Modifier = Modifier) {
     val haptics = rememberHaptics()
     val state = remember(model) { DeckState(model, scope, haptics) }
     state.reduceMotion = LocalReduceMotion.current
+    state.liquid = LocalLiquidGlass.current
     val density = LocalDensity.current
     val direction = LocalLayoutDirection.current
     val insets = WindowInsets.safeDrawing

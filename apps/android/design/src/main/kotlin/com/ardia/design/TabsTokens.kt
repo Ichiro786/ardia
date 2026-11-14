@@ -39,6 +39,9 @@ object TabsMotion {
     val openScale = ArdiaSpring(response = 0.19f, dampingFraction = 1f)
     val openPosition = ArdiaSpring(response = 0.3f, dampingFraction = 1f)
     val expand = ArdiaSpring(response = 0.3f, dampingFraction = 1f)
+    val glassOpenScale = ArdiaSpring(response = 0.32f, dampingFraction = 0.74f)
+    val glassOpenPosition = ArdiaSpring(response = 0.42f, dampingFraction = 0.8f)
+    val glassExpand = ArdiaSpring(response = 0.36f, dampingFraction = 0.86f)
     val gapClose = Motion.tabStack
     val release = ArdiaSpring(response = 0.3f, dampingFraction = 0.9f)
     val fade = ArdiaTween(200, SwiftEasing.easeOut)
