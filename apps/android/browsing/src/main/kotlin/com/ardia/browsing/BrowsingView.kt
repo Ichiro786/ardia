@@ -101,7 +101,8 @@ fun BrowsingView(model: AppModel, isFront: Boolean, modifier: Modifier = Modifie
     val barScale = LocalBarButtonScale.current
     val barHeight = BarGeometry.height(navigationBottom, barScale)
     val collapses = model.settings.collapsesBottomBar
-    val seeThrough = LocalLiquidGlass.current && model.settings.seeThroughBar
+    val liquid = LocalLiquidGlass.current
+    val seeThrough = liquid && model.settings.seeThroughBar
     val underlaps = collapses || seeThrough
     val barBackdrop = rememberFrostedBackdrop()
     val pageBottomInset = if (underlaps) 0.dp else BarGeometry.pageBottomInset(navigationBottom, barScale)
@@ -255,9 +256,14 @@ fun BrowsingView(model: AppModel, isFront: Boolean, modifier: Modifier = Modifie
         Bar(
             model = model,
             pager = pager,
+            tab = tab,
             tone = tone?.bottom,
             backdrop = if (seeThrough) barBackdrop else null,
-            hidden = barHidden || isFinding,
+            liquid = liquid,
+            underlaps = underlaps,
+            hidden = if (liquid) isFinding else barHidden || isFinding,
+            shrunk = liquid && barHidden && !isFinding,
+            onExpand = { barHidden = false },
             height = barHeight,
             navigationBottom = navigationBottom,
             reduceMotion = reduceMotion,
@@ -299,9 +305,14 @@ private const val TONE_SETTLE_MILLIS = 250L
 private fun Bar(
     model: AppModel,
     pager: TabPager,
+    tab: BrowserTab?,
     tone: Int?,
     backdrop: FrostedBackdrop?,
+    liquid: Boolean,
+    underlaps: Boolean,
     hidden: Boolean,
+    shrunk: Boolean,
+    onExpand: () -> Unit,
     height: androidx.compose.ui.unit.Dp,
     navigationBottom: androidx.compose.ui.unit.Dp,
     reduceMotion: Boolean,
@@ -327,10 +338,32 @@ private fun Bar(
                 translationY = hide * travel
                 alpha = 1f - hide
             }
-            .barBacking(tone, backdrop)
-            .tabPagerDrag(pager, enabled = !hidden),
+            .then(
+                when {
+                    !liquid -> Modifier.barBacking(tone).tabPagerDrag(pager, enabled = !hidden)
+                    underlaps -> Modifier
+                    else -> Modifier.barBacking(tone)
+                },
+            ),
     ) {
-        if (!(hidden && gone)) {
+        if (liquid && !(hidden && gone)) {
+            CompositionLocalProvider(LocalArdiaDarkTheme provides barDark) {
+                GlassPageBar(
+                    model = model,
+                    tab = tab,
+                    backdrop = backdrop,
+                    shrunk = shrunk,
+                    navigationBottom = navigationBottom,
+                    reduceMotion = reduceMotion,
+                    onTabs = onTabs,
+                    onStep = onStep,
+                    onSelectTab = onSelectTab,
+                    onExpand = onExpand,
+                    addressDrag = Modifier.tabPagerDrag(pager, enabled = !hidden && !shrunk),
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        } else if (!(hidden && gone)) {
             CompositionLocalProvider(LocalArdiaDarkTheme provides barDark) {
                 BottomBar(
                     model = model,

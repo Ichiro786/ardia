@@ -11,6 +11,8 @@
     <string name="browsing_close_tab">Close Tab</string>
     <string name="browsing_new_search">New Search</string>
     <string name="browsing_page_menu">Page Menu</string>
+    <string name="browsing_address">Address</string>
+    <string name="browsing_show_bar">Show Bar</string>
 
     <string name="browsing_back">Back</string>
     <string name="browsing_forward">Forward</string>
