@@ -179,6 +179,18 @@ enum class BarButtonSize(val raw: String, val title: String, val scale: Float) {
     }
 }
 
+enum class InterfaceStyle(val raw: String, val title: String) {
+    GLASS("glass", "Glass"),
+    CLASSIC("classic", "Classic"),
+    ;
+
+    companion object {
+        val default = GLASS
+
+        fun of(raw: String?): InterfaceStyle? = entries.firstOrNull { it.raw == raw }
+    }
+}
+
 sealed interface LookSource {
     data class Preset(val choice: ColorChoice) : LookSource
 
@@ -192,6 +204,7 @@ data class AppSettings(
     val archiveCardShown: Boolean = false,
     val colorChoice: ColorChoice? = null,
     val barButtonSize: BarButtonSize = BarButtonSize.default,
+    val interfaceStyle: InterfaceStyle = InterfaceStyle.default,
 ) {
     val matchesMac: Boolean get() = colorChoice == null
 
@@ -212,6 +225,7 @@ class AppPreferences(private val store: KeyValueStore) {
             archiveCardShown = store.boolean(KEY_ARCHIVE_CARD_SHOWN) ?: false,
             colorChoice = ColorChoice.of(store.string(KEY_COLOR)),
             barButtonSize = BarButtonSize.of(store.string(KEY_BAR_BUTTON_SIZE)) ?: BarButtonSize.default,
+            interfaceStyle = InterfaceStyle.of(store.string(KEY_INTERFACE_STYLE)) ?: InterfaceStyle.default,
         ),
     )
 
@@ -228,6 +242,11 @@ class AppPreferences(private val store: KeyValueStore) {
     fun setBarButtonSize(size: BarButtonSize) = synchronized(lock) {
         store.putString(KEY_BAR_BUTTON_SIZE, size.raw)
         _settings.value = _settings.value.copy(barButtonSize = size)
+    }
+
+    fun setInterfaceStyle(style: InterfaceStyle) = synchronized(lock) {
+        store.putString(KEY_INTERFACE_STYLE, style.raw)
+        _settings.value = _settings.value.copy(interfaceStyle = style)
     }
 
     fun setCollapsesBottomBar(value: Boolean) = put(KEY_COLLAPSE_BOTTOM_BAR, value) { it.copy(collapsesBottomBar = value) }
@@ -250,5 +269,6 @@ class AppPreferences(private val store: KeyValueStore) {
         const val KEY_ARCHIVE_CARD_SHOWN = "tabs.archiveCardShown"
         const val KEY_COLOR = "settings.color"
         const val KEY_BAR_BUTTON_SIZE = "settings.barButtonSize"
+        const val KEY_INTERFACE_STYLE = "settings.interfaceStyle"
     }
 }

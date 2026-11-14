@@ -1,5 +1,7 @@
 package com.ardia.search
 
+import com.ardia.design.GlassMenuItem
+import com.ardia.design.GlassMenu
 import android.os.Build
 import android.view.HapticFeedbackConstants
 import android.view.View
@@ -19,8 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -338,16 +338,12 @@ private fun SuggestionRow(
             }
         }
         if (suggestion != null) {
-            DropdownMenu(expanded = isMenuOpen, onDismissRequest = onDismissMenu) {
+            GlassMenu(expanded = isMenuOpen, onDismissRequest = onDismissMenu) {
                 for (item in remember(suggestion, actions) { actions.menu(suggestion) }) {
-                    DropdownMenuItem(
-                        text = { Text(item.label) },
-                        leadingIcon = { Icon(item.icon, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                        onClick = {
-                            onDismissMenu()
-                            item.action()
-                        },
-                    )
+                    GlassMenuItem(item.label, item.icon) {
+                        onDismissMenu()
+                        item.action()
+                    }
                 }
             }
         }

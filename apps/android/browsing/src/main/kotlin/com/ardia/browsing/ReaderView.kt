@@ -1,5 +1,9 @@
 package com.ardia.browsing
 
+import com.ardia.design.GlassMenuItem
+import com.ardia.design.GlassMenuHeading
+import com.ardia.design.GlassMenuDivider
+import com.ardia.design.GlassMenu
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -24,9 +28,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -295,24 +296,18 @@ private fun AppearanceMenu(settings: ReaderSettings, theme: ReaderTheme) {
         ) {
             Icon(ArdiaSymbols.textformatSize, null, Modifier.size(22.dp), tint = Palette.formAccent.current)
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.browsing_smaller_text)) },
-                leadingIcon = { Icon(ArdiaSymbols.textformatSizeSmaller, null, Modifier.size(18.dp)) },
-                enabled = settings.step > 0,
-                onClick = { settings.changeStep(settings.step - 1) },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.browsing_larger_text)) },
-                leadingIcon = { Icon(ArdiaSymbols.textformatSizeLarger, null, Modifier.size(18.dp)) },
-                enabled = settings.step < ReaderSizes.steps.lastIndex,
-                onClick = { settings.changeStep(settings.step + 1) },
-            )
-            HorizontalDivider()
+        GlassMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            GlassMenuItem(stringResource(R.string.browsing_smaller_text), ArdiaSymbols.textformatSizeSmaller, enabled = settings.step > 0) {
+                settings.changeStep(settings.step - 1)
+            }
+            GlassMenuItem(stringResource(R.string.browsing_larger_text), ArdiaSymbols.textformatSizeLarger, enabled = settings.step < ReaderSizes.steps.lastIndex) {
+                settings.changeStep(settings.step + 1)
+            }
+            GlassMenuDivider()
             MenuHeading(stringResource(R.string.browsing_font))
             CheckItem(stringResource(R.string.browsing_font_serif), settings.serif) { settings.changeSerif(true) }
             CheckItem(stringResource(R.string.browsing_font_sans), !settings.serif) { settings.changeSerif(false) }
-            HorizontalDivider()
+            GlassMenuDivider()
             MenuHeading(stringResource(R.string.browsing_theme))
             CheckItem(stringResource(R.string.browsing_theme_light), theme == ReaderTheme.Light) { settings.changeTheme(ReaderTheme.Light) }
             CheckItem(stringResource(R.string.browsing_theme_sepia), theme == ReaderTheme.Sepia) { settings.changeTheme(ReaderTheme.Sepia) }
@@ -323,14 +318,10 @@ private fun AppearanceMenu(settings: ReaderSettings, theme: ReaderTheme) {
 
 @Composable
 private fun MenuHeading(text: String) {
-    Text(text, style = ArdiaType.footnote, color = SystemPalette.secondaryLabel.current, modifier = Modifier.padding(horizontal = Spacing.page, vertical = Spacing.hairline))
+    GlassMenuHeading(text)
 }
 
 @Composable
 private fun CheckItem(text: String, checked: Boolean, onClick: () -> Unit) {
-    DropdownMenuItem(
-        text = { Text(text) },
-        trailingIcon = if (checked) ({ Icon(ArdiaSymbols.checkmark, null, Modifier.size(16.dp)) }) else null,
-        onClick = onClick,
-    )
+    GlassMenuItem(text, if (checked) ArdiaSymbols.checkmark else null, selected = checked, onClick = onClick)
 }

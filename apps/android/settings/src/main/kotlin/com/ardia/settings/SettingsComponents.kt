@@ -1,5 +1,8 @@
 package com.ardia.settings
 
+import com.ardia.design.GlassMenuItem
+import com.ardia.design.GlassMenu
+import com.ardia.design.GlassAlert
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -30,10 +33,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -292,26 +292,13 @@ fun <T> PickerRow(
             if (icon != null) SettingsRowLabel(title, icon, tint) else Text(title, style = ArdiaType.body, color = SystemPalette.label.current)
         }
         Box(Modifier.align(Alignment.BottomEnd).padding(end = SettingsLayout.rowInset)) {
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier.background(Palette.panel.current),
-            ) {
+            GlassMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 for (option in options) {
                     val isSelected = option == selected
-                    DropdownMenuItem(
-                        text = { Text(label(option), style = ArdiaType.body, color = SystemPalette.label.current) },
-                        onClick = {
-                            expanded = false
-                            onSelect(option)
-                        },
-                        leadingIcon = {
-                            Box(Modifier.size(18.dp)) {
-                                if (isSelected) Icon(ArdiaSymbols.checkmark, null, Modifier.size(18.dp), tint = SystemPalette.label.current)
-                            }
-                        },
-                        modifier = Modifier.semantics { this.selected = isSelected },
-                    )
+                    GlassMenuItem(label(option), if (isSelected) ArdiaSymbols.checkmark else null, selected = isSelected) {
+                        expanded = false
+                        onSelect(option)
+                    }
                 }
             }
         }
@@ -393,27 +380,18 @@ fun ConfirmDialog(
     onDismiss: () -> Unit,
     destructive: Boolean = true,
 ) {
-    AlertDialog(
+    GlassAlert(
+        title = title,
+        message = message,
+        confirmLabel = confirm,
+        cancelLabel = stringResource(R.string.settings_cancel),
+        onConfirm = {
+            onDismiss()
+            onConfirm()
+        },
         onDismissRequest = onDismiss,
-        containerColor = Palette.panel.current,
-        title = { Text(title, style = ArdiaType.headline, color = SystemPalette.label.current) },
-        text = { Text(message, style = ArdiaType.subheadline, color = SystemPalette.secondaryLabel.current) },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    onDismiss()
-                    onConfirm()
-                },
-                modifier = Modifier.testTag(SettingsTags.CONFIRM),
-            ) {
-                Text(confirm, style = ArdiaType.body.semibold, color = if (destructive) SystemPalette.red.current else Palette.formAccent.current)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.settings_cancel), style = ArdiaType.body, color = Palette.formAccent.current)
-            }
-        },
+        destructive = destructive,
+        confirmModifier = Modifier.testTag(SettingsTags.CONFIRM),
     )
 }
 

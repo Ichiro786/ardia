@@ -1,6 +1,5 @@
 package com.ardia.tabs
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -12,45 +11,46 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ardia.design.ArdiaSymbols
 import com.ardia.design.ArdiaType
-import com.ardia.design.BarButtons
 import com.ardia.design.FrostedBackdrop
 import com.ardia.design.FrostedStyle
+import com.ardia.design.Glass
+import com.ardia.design.GlassCircleButton
+import com.ardia.design.GlassMenu
+import com.ardia.design.GlassMenuDivider
+import com.ardia.design.GlassPlusButton
+import com.ardia.design.LocalLiquidGlass
+import com.ardia.design.glassShadow
+import com.ardia.design.springPress
 import com.ardia.design.LocalArdiaDarkTheme
-import com.ardia.design.LocalBarButtonScale
 import com.ardia.design.LookFrosting
 import com.ardia.design.Palette
 import com.ardia.design.ProfileLook
 import com.ardia.design.SystemPalette
-import com.ardia.design.TabsLayout
 import com.ardia.design.TabsPalette
 import com.ardia.design.frosted
 import com.ardia.design.monospacedDigits
@@ -93,7 +93,6 @@ internal fun TabDeckBar(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PlusButton(
     backdrop: FrostedBackdrop?,
@@ -104,32 +103,16 @@ private fun PlusButton(
     actions: DeckBarActions,
 ) {
     var menu by remember { mutableStateOf(false) }
-    val label = stringResource(if (isIncognito) R.string.tabs_new_incognito_tab else R.string.tabs_new_tab)
-    val hint = stringResource(R.string.tabs_plus_hint)
-    val dark = LocalArdiaDarkTheme.current
-    val scale = LocalBarButtonScale.current
-    Box(Modifier.heightIn(min = BarButtons.rowHeight(scale)), contentAlignment = Alignment.Center) {
-        Box(
-            Modifier
-                .size(TabsLayout.barPlus * scale)
-                .frosted(backdrop, CircleShape, style)
-                .combinedClickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = ripple(bounded = true),
-                    onLongClick = { menu = true },
-                    onClick = actions.newTab,
-                )
-                .clearAndSetSemantics {
-                    contentDescription = label
-                    role = Role.Button
-                    onClick { actions.newTab(); true }
-                    onLongClick(hint) { menu = true; true }
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(ArdiaSymbols.plus, null, Modifier.size(22.dp * scale), tint = SystemPalette.label.resolve(dark))
-        }
-        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+    GlassPlusButton(
+        label = stringResource(if (isIncognito) R.string.tabs_new_incognito_tab else R.string.tabs_new_tab),
+        hint = stringResource(R.string.tabs_plus_hint),
+        backdrop = backdrop,
+        classicStyle = style,
+        iconSize = 22.dp,
+        onClick = actions.newTab,
+        onLongClick = { menu = true },
+    ) {
+        GlassMenu(expanded = menu, onDismissRequest = { menu = false }) {
             val pick = { action: () -> Unit -> { menu = false; action() } }
             if (isIncognito) {
                 MenuRow(stringResource(R.string.tabs_new_tab), ArdiaSymbols.plus, action = pick(actions.newRegularTab))
@@ -139,7 +122,7 @@ private fun PlusButton(
                 if (canReopen) MenuRow(stringResource(R.string.tabs_reopen_closed_tab), ArdiaSymbols.arrowUturnBackward, action = pick(actions.reopen))
             }
             if (hasTabs) {
-                HorizontalDivider()
+                GlassMenuDivider()
                 MenuRow(
                     stringResource(if (isIncognito) R.string.tabs_close_incognito_tabs else R.string.tabs_close_all_tabs),
                     ArdiaSymbols.xmark,
@@ -153,58 +136,57 @@ private fun PlusButton(
 
 @Composable
 internal fun DeckCircleButton(symbol: ImageVector, label: String, backdrop: FrostedBackdrop?, style: FrostedStyle, action: () -> Unit) {
-    val dark = LocalArdiaDarkTheme.current
-    val circle = TabsLayout.barCircle * LocalBarButtonScale.current
-    Box(
-        Modifier
-            .size(BarButtons.hitTarget(circle))
-            .combinedClickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = ripple(bounded = false, radius = circle / 2),
-                onClick = action,
-            )
-            .clearAndSetSemantics {
-                contentDescription = label
-                role = Role.Button
-                onClick { action(); true }
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(Modifier.size(circle).frosted(backdrop, CircleShape, style), contentAlignment = Alignment.Center) {
-            Icon(symbol, null, Modifier.size(TabsLayout.barSymbol * LocalBarButtonScale.current), tint = SystemPalette.secondaryLabel.resolve(dark))
-        }
-    }
+    GlassCircleButton(
+        symbol = symbol,
+        label = label,
+        backdrop = backdrop,
+        classicStyle = style,
+        classicTint = SystemPalette.secondaryLabel,
+        onClick = action,
+    )
 }
 
 @Composable
-internal fun IncognitoChip(count: Int, close: () -> Unit, modifier: Modifier = Modifier) {
+internal fun IncognitoChip(count: Int, backdrop: FrostedBackdrop?, close: () -> Unit, modifier: Modifier = Modifier) {
     var menu by remember { mutableStateOf(false) }
     val label = stringResource(R.string.tabs_incognito_chip, count)
     val hint = stringResource(R.string.tabs_incognito_chip_hint)
+    val liquid = LocalLiquidGlass.current
+    val interaction = remember { MutableInteractionSource() }
     Box(modifier.heightIn(min = 44.dp), contentAlignment = Alignment.Center) {
-        Row(
-            Modifier
-                .heightIn(min = 32.dp)
-                .background(TabsPalette.incognitoCard, CircleShape)
-                .combinedClickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = ripple(),
-                    onClick = { menu = true },
-                )
-                .clearAndSetSemantics {
-                    contentDescription = label
-                    role = Role.Button
-                    onClick(hint) { menu = true; true }
-                }
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            IncognitoGlyph(16.dp)
-            Text(stringResource(R.string.tabs_incognito), style = ArdiaType.subheadline.semibold, color = androidx.compose.ui.graphics.Color.White)
-            Text(count.toString(), style = ArdiaType.subheadline.semibold.monospacedDigits, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.6f))
+        CompositionLocalProvider(LocalArdiaDarkTheme provides true) {
+            Row(
+                Modifier
+                    .springPress(interaction)
+                    .heightIn(min = 32.dp)
+                    .glassShadow(CircleShape, liquid, dark = true)
+                    .then(
+                        if (liquid) {
+                            Modifier.frosted(backdrop, CircleShape, Glass.control)
+                        } else {
+                            Modifier.background(TabsPalette.incognitoCard, CircleShape)
+                        },
+                    )
+                    .combinedClickable(
+                        interactionSource = interaction,
+                        indication = null,
+                        onClick = { menu = true },
+                    )
+                    .clearAndSetSemantics {
+                        contentDescription = label
+                        role = Role.Button
+                        onClick(hint) { menu = true; true }
+                    }
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                IncognitoGlyph(16.dp)
+                Text(stringResource(R.string.tabs_incognito), style = ArdiaType.subheadline.semibold, color = Color.White)
+                Text(count.toString(), style = ArdiaType.subheadline.semibold.monospacedDigits, color = Color.White.copy(alpha = 0.6f))
+            }
         }
-        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+        GlassMenu(expanded = menu, onDismissRequest = { menu = false }) {
             MenuRow(stringResource(R.string.tabs_close_incognito_tabs), ArdiaSymbols.xmark, destructive = true) {
                 menu = false
                 close()

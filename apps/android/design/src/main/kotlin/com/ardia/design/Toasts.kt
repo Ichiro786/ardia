@@ -239,11 +239,15 @@ object ToastDefaults {
 @Composable
 fun ToastView(toast: Toast, modifier: Modifier = Modifier) {
     val message = toast.message.resolve()
+    val surface = if (Glass.isLiquid) {
+        Modifier.frosted(null, CircleShape, Glass.panel)
+    } else {
+        Modifier.background(Palette.toast.current, CircleShape).border(0.5.dp, Palette.panelBorder.current, CircleShape)
+    }
     Row(
         modifier
             .dropShadow(CircleShape, Shadow(radius = 14.dp, color = Palette.toastShadow.current, offset = DpOffset(0.dp, 6.dp)))
-            .background(Palette.toast.current, CircleShape)
-            .border(0.5.dp, Palette.panelBorder.current, CircleShape)
+            .then(surface)
             .heightIn(min = ToastDefaults.minHeight)
             .padding(horizontal = Spacing.page, vertical = ToastDefaults.verticalPadding),
         horizontalArrangement = Arrangement.spacedBy(Spacing.tight),
@@ -260,6 +264,7 @@ fun ToastView(toast: Toast, modifier: Modifier = Modifier) {
 fun ToastHost(center: ToastCenter, modifier: Modifier = Modifier, clearance: Dp = ToastDefaults.barClearance) {
     val keyboard = WindowInsets.isImeVisible
     val reduceMotion = LocalReduceMotion.current
+    val liquid = LocalLiquidGlass.current
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     Box(
@@ -275,10 +280,11 @@ fun ToastHost(center: ToastCenter, modifier: Modifier = Modifier, clearance: Dp 
                     fadeIn(Motion.reducedFade.spec()) togetherWith fadeOut(Motion.reducedFade.spec()) using SizeTransform(clip = false)
                 } else {
                     val spring = Motion.snappy
+                    val pop = if (liquid) Motion.glassPop else spring
                     (
-                        slideInVertically(spring.spec(IntOffset.VisibilityThreshold)) { with(density) { 24.dp.roundToPx() } } +
+                        slideInVertically(pop.spec(IntOffset.VisibilityThreshold)) { with(density) { 24.dp.roundToPx() } } +
                             fadeIn(spring.spec()) +
-                            scaleIn(spring.spec(), initialScale = 0.92f, transformOrigin = TransformOrigin(0.5f, 1f))
+                            scaleIn(pop.spec(), initialScale = if (liquid) 0.8f else 0.92f, transformOrigin = TransformOrigin(0.5f, 1f))
                         ) togetherWith (
                         slideOutVertically(spring.spec(IntOffset.VisibilityThreshold)) { with(density) { 16.dp.roundToPx() } } +
                             fadeOut(spring.spec())

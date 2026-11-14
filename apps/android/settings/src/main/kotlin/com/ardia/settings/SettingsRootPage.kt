@@ -50,6 +50,7 @@ import com.ardia.design.semibold
 import com.ardia.store.AppLinkPreference
 import com.ardia.store.AutoArchiveInterval
 import com.ardia.store.BarButtonSize
+import com.ardia.store.InterfaceStyle
 
 @Composable
 fun SettingsRootPage(nav: SettingsNav) {
@@ -80,6 +81,10 @@ fun SettingsRootPage(nav: SettingsNav) {
         }
         item(key = "buttons") {
             SettingsGroup {
+                PickerRow(
+                    stringResource(R.string.settings_interface_style), InterfaceStyle.entries, model.settings.interfaceStyle, { it.title },
+                    { model.settings.interfaceStyle = it }, icon = ArdiaSymbols.sparkles, tint = SettingsTint.bottomBar, showsDivider = true, tag = "interfaceStyle",
+                )
                 PickerRow(
                     stringResource(R.string.settings_bottom_button_size), BarButtonSize.entries, model.settings.barButtonSize, { it.title },
                     { model.settings.barButtonSize = it }, icon = ArdiaSymbols.textformatSize, tint = SettingsTint.bottomBar, tag = "barButtonSize",

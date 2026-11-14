@@ -34,9 +34,6 @@ import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.SwipeToDismissBox
@@ -68,6 +65,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.ardia.appmodel.AppModel
+import com.ardia.design.GlassAlert
+import com.ardia.design.GlassMenu
+import com.ardia.design.GlassMenuDivider
 import com.ardia.design.ArdiaSymbols
 import com.ardia.design.ArdiaType
 import com.ardia.design.BrowsePalette
@@ -92,7 +92,6 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun ArchiveView(model: AppModel, modifier: Modifier = Modifier) {
-    val dark = LocalArdiaDarkTheme.current
     val look = LocalProfileLook.current
     val haptics = rememberHaptics()
     var query by rememberSaveable { mutableStateOf("") }
@@ -106,18 +105,17 @@ fun ArchiveView(model: AppModel, modifier: Modifier = Modifier) {
         ArchiveContent(model, query, onQuery = { query = it }, haptics, confirmClear = { isConfirmingClear = true })
     }
     if (isConfirmingClear) {
-        AlertDialog(
-            onDismissRequest = { isConfirmingClear = false },
-            title = { Text(stringResource(R.string.archive_delete_all_title), style = ArdiaType.headline) },
-            text = { Text(stringResource(R.string.archive_delete_all_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    isConfirmingClear = false
-                    haptics.warning()
-                    model.clearArchive()
-                }) { Text(stringResource(R.string.archive_delete_all), color = SystemPalette.red.resolve(dark)) }
+        GlassAlert(
+            title = stringResource(R.string.archive_delete_all_title),
+            message = stringResource(R.string.archive_delete_all_message),
+            confirmLabel = stringResource(R.string.archive_delete_all),
+            cancelLabel = stringResource(R.string.tabs_cancel),
+            onConfirm = {
+                isConfirmingClear = false
+                haptics.warning()
+                model.clearArchive()
             },
-            dismissButton = { TextButton(onClick = { isConfirmingClear = false }) { Text(stringResource(R.string.tabs_cancel)) } },
+            onDismissRequest = { isConfirmingClear = false },
         )
     }
 }
@@ -203,7 +201,7 @@ private fun ArchiveTopBar(interval: AutoArchiveInterval, canDelete: Boolean, don
             IconButton(onClick = { menu = true }, modifier = Modifier.semantics { contentDescription = options }) {
                 Icon(ArdiaSymbols.ellipsis, null, tint = Palette.formAccent.resolve(dark))
             }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            GlassMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 Text(
                     stringResource(R.string.tabs_archive_inactive_tabs),
                     style = ArdiaType.footnote,
@@ -216,7 +214,7 @@ private fun ArchiveTopBar(interval: AutoArchiveInterval, canDelete: Boolean, don
                         choose(option)
                     }
                 }
-                HorizontalDivider()
+                GlassMenuDivider()
                 MenuRow(stringResource(R.string.archive_delete_all_menu), ArdiaSymbols.trash, destructive = true, enabled = canDelete) {
                     menu = false
                     deleteAll()
@@ -357,7 +355,7 @@ private fun ArchiveRowItem(model: AppModel, tab: BrowserTab, haptics: Haptics, m
                     .background(LocalProfileLook.current.surface.resolve(dark))
                     .combinedClickable(onClickLabel = hint, onLongClick = { menu = true }, onClick = restore),
             )
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            GlassMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 MenuRow(stringResource(R.string.archive_open), ArdiaSymbols.arrowUpForwardSquare) {
                     menu = false
                     model.restoreArchived(tab.id)
@@ -373,7 +371,7 @@ private fun ArchiveRowItem(model: AppModel, tab: BrowserTab, haptics: Haptics, m
                         model.share(tab)
                     }
                 }
-                HorizontalDivider()
+                GlassMenuDivider()
                 MenuRow(stringResource(R.string.archive_delete), ArdiaSymbols.trash, destructive = true) {
                     menu = false
                     delete()

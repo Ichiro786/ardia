@@ -8,6 +8,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
@@ -69,20 +70,28 @@ internal fun Modifier.deckCardPlacement(
     }
 }
 
-internal fun Modifier.deckCardEdge(state: DeckState, id: String, index: Int, frame: DeckPose, edge: Color): Modifier = drawWithContent {
+internal fun Modifier.deckCardEdge(state: DeckState, id: String, index: Int, frame: DeckPose, edge: Color, lit: Boolean): Modifier = drawWithContent {
     drawContent()
     state.cardFrame(id, index, frame)
     val scale = max(frame.scale.toFloat(), 0.01f)
-    val stroke = 0.5.dp.toPx() / scale
+    val stroke = (if (lit) 1.dp else 0.5.dp).toPx() / scale
     val radius = frame.corner.toFloat() * density / scale
-    drawRoundRect(
-        color = edge,
-        topLeft = Offset(stroke / 2, stroke / 2),
-        size = Size(size.width - stroke, size.height - stroke),
-        cornerRadius = CornerRadius(radius, radius),
-        style = Stroke(stroke),
-    )
+    val topLeft = Offset(stroke / 2, stroke / 2)
+    val edgeSize = Size(size.width - stroke, size.height - stroke)
+    val corner = CornerRadius(radius, radius)
+    if (lit) {
+        val brush = Brush.verticalGradient(
+            0f to Color.White.copy(alpha = LIT_EDGE_TOP),
+            0.35f to edge,
+            1f to edge,
+        )
+        drawRoundRect(brush = brush, topLeft = topLeft, size = edgeSize, cornerRadius = corner, style = Stroke(stroke))
+    } else {
+        drawRoundRect(color = edge, topLeft = topLeft, size = edgeSize, cornerRadius = corner, style = Stroke(stroke))
+    }
 }
+
+private const val LIT_EDGE_TOP = 0.42f
 
 internal fun Modifier.deckHeaderPlacement(state: DeckState, id: String, index: Int, isLast: Boolean, pose: DeckPose): Modifier =
     layout { measurable, _ ->

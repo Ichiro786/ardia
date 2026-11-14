@@ -38,7 +38,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
@@ -78,6 +77,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ardia.appmodel.AppModel
+import com.ardia.design.GlassMenu
 import com.ardia.design.ArdiaSymbols
 import com.ardia.design.ArdiaType
 import com.ardia.design.FaviconImage
@@ -371,7 +371,7 @@ private fun RemoteRow(title: String, url: String, depth: Int, links: RemoteLinks
                 modifier = Modifier.weight(1f),
             )
         }
-        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+        GlassMenu(expanded = menu, onDismissRequest = { menu = false }) {
             MenuRow(stringResource(R.string.spaces_open), ArdiaSymbols.arrowUpForwardSquare) {
                 menu = false
                 open()
@@ -492,7 +492,7 @@ private fun PinnedTileView(tile: PinnedTile, height: Dp, showsTitle: Boolean, op
             }
         }
         if (folder != null) {
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            GlassMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 for (tab in folder) {
                     MenuRow(TabText.remoteTitle(tab.title, tab.url), null) {
                         menu = false

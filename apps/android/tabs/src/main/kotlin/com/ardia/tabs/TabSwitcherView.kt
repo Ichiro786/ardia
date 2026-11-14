@@ -15,9 +15,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -43,11 +40,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.ardia.appmodel.AppModel
-import com.ardia.design.ArdiaType
 import com.ardia.design.BarButtons
 import com.ardia.design.DeckSize
 import com.ardia.design.LocalArdiaDarkTheme
+import com.ardia.design.GlassAlert
 import com.ardia.design.LocalBarButtonScale
+import com.ardia.design.LocalLiquidGlass
 import com.ardia.design.LocalProfileLook
 import com.ardia.design.LocalReduceMotion
 import com.ardia.design.Spacing
@@ -69,6 +67,7 @@ fun TabSwitcherView(model: AppModel, modifier: Modifier = Modifier) {
     val haptics = rememberHaptics()
     val state = remember(model) { DeckState(model, scope, haptics) }
     state.reduceMotion = LocalReduceMotion.current
+    state.liquid = LocalLiquidGlass.current
     val density = LocalDensity.current
     val direction = LocalLayoutDirection.current
     val insets = WindowInsets.safeDrawing
@@ -159,6 +158,7 @@ private fun TabDeck(model: AppModel, state: DeckState, haptics: Haptics, geometr
         if (privateCount > 0) {
             IncognitoChip(
                 count = privateCount,
+                backdrop = backdrop,
                 close = { state.isConfirmingCloseIncognito = true },
                 modifier = Modifier
                     .zIndex(OVERLAY_LAYER)
@@ -230,41 +230,33 @@ private fun TabDeck(model: AppModel, state: DeckState, haptics: Haptics, geometr
 
 @Composable
 private fun DeckDialogs(model: AppModel, state: DeckState, haptics: Haptics, count: Int) {
-    val dark = LocalArdiaDarkTheme.current
-    val destructive = SystemPalette.red.resolve(dark)
     if (state.isConfirmingCloseAll) {
         val hasPrivate = model.tabs.privateTabs.isNotEmpty()
-        AlertDialog(
-            onDismissRequest = { state.isConfirmingCloseAll = false },
-            title = { Text(pluralStringResource(R.plurals.tabs_close_count_title, count, count), style = ArdiaType.headline) },
-            text = { Text(stringResource(if (hasPrivate) R.string.tabs_close_all_message_incognito else R.string.tabs_close_all_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    state.isConfirmingCloseAll = false
-                    haptics.mediumImpact()
-                    state.closeAll()
-                }) {
-                    Text(stringResource(if (count == 1) R.string.tabs_close_tab else R.string.tabs_close_all_tabs), color = destructive)
-                }
+        GlassAlert(
+            title = pluralStringResource(R.plurals.tabs_close_count_title, count, count),
+            message = stringResource(if (hasPrivate) R.string.tabs_close_all_message_incognito else R.string.tabs_close_all_message),
+            confirmLabel = stringResource(if (count == 1) R.string.tabs_close_tab else R.string.tabs_close_all_tabs),
+            cancelLabel = stringResource(R.string.tabs_cancel),
+            onConfirm = {
+                state.isConfirmingCloseAll = false
+                haptics.mediumImpact()
+                state.closeAll()
             },
-            dismissButton = { TextButton(onClick = { state.isConfirmingCloseAll = false }) { Text(stringResource(R.string.tabs_cancel)) } },
+            onDismissRequest = { state.isConfirmingCloseAll = false },
         )
     }
     if (state.isConfirmingCloseIncognito) {
-        AlertDialog(
-            onDismissRequest = { state.isConfirmingCloseIncognito = false },
-            title = { Text(stringResource(R.string.tabs_close_incognito_title), style = ArdiaType.headline) },
-            text = { Text(stringResource(R.string.tabs_close_incognito_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    state.isConfirmingCloseIncognito = false
-                    haptics.mediumImpact()
-                    state.leaveIncognito()
-                }) {
-                    Text(stringResource(R.string.tabs_close_incognito_tabs), color = destructive)
-                }
+        GlassAlert(
+            title = stringResource(R.string.tabs_close_incognito_title),
+            message = stringResource(R.string.tabs_close_incognito_message),
+            confirmLabel = stringResource(R.string.tabs_close_incognito_tabs),
+            cancelLabel = stringResource(R.string.tabs_cancel),
+            onConfirm = {
+                state.isConfirmingCloseIncognito = false
+                haptics.mediumImpact()
+                state.leaveIncognito()
             },
-            dismissButton = { TextButton(onClick = { state.isConfirmingCloseIncognito = false }) { Text(stringResource(R.string.tabs_cancel)) } },
+            onDismissRequest = { state.isConfirmingCloseIncognito = false },
         )
     }
 }

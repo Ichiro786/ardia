@@ -8,6 +8,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -29,6 +31,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
 import com.ardia.appmodel.AppModel
 import com.ardia.appmodel.SettingsRoute
+import com.ardia.design.LocalLiquidGlass
 import com.ardia.design.LocalReduceMotion
 import com.ardia.design.Motion
 import kotlin.coroutines.cancellation.CancellationException
@@ -69,6 +72,7 @@ fun SettingsNavHost(nav: SettingsNav, modifier: Modifier = Modifier, root: @Comp
     val stack = nav.stack
     val holder = rememberSaveableStateHolder()
     val reduceMotion = LocalReduceMotion.current
+    val liquid = LocalLiquidGlass.current
     val scope = rememberCoroutineScope()
     val backProgress = remember { Animatable(0f) }
     var gestureDepth by remember { mutableIntStateOf(-1) }
@@ -103,7 +107,11 @@ fun SettingsNavHost(nav: SettingsNav, modifier: Modifier = Modifier, root: @Comp
     Box(modifier.fillMaxSize()) {
         AnimatedContent(
             targetState = entries.size to entries.lastOrNull(),
-            transitionSpec = { settingsTransition(forward = targetState.first > initialState.first, reduceMotion) },
+            transitionSpec = {
+                settingsTransition(forward = targetState.first > initialState.first, reduceMotion, liquid).apply {
+                    if (liquid) targetContentZIndex = targetState.first.toFloat()
+                }
+            },
             contentKey = { (depth, destination) -> "$depth:${destination?.key}" },
             label = "settingsStack",
         ) { (depth, destination) ->
@@ -134,13 +142,29 @@ fun SettingsNavHost(nav: SettingsNav, modifier: Modifier = Modifier, root: @Comp
 private const val ROOT_KEY = "root"
 private const val SETTLE_MILLIS = 500L
 
-private fun settingsTransition(forward: Boolean, reduceMotion: Boolean): ContentTransform {
+private fun settingsTransition(forward: Boolean, reduceMotion: Boolean, liquid: Boolean): ContentTransform {
     if (reduceMotion) return fadeIn(Motion.reducedFade.spec()) togetherWith fadeOut(Motion.reducedFade.spec())
+    if (liquid) return glassSettingsTransition(forward)
     val spec = Motion.smooth.spec<IntOffset>(IntOffset.VisibilityThreshold)
     return if (forward) {
         slideInHorizontally(spec) { it } togetherWith slideOutHorizontally(spec) { -it / 3 }
     } else {
         slideInHorizontally(spec) { -it / 3 } togetherWith slideOutHorizontally(spec) { it }
+    }
+}
+
+private const val GLASS_RECEDED_SCALE = 0.94f
+private const val GLASS_RECEDED_ALPHA = 0.5f
+
+private fun glassSettingsTransition(forward: Boolean): ContentTransform {
+    val slide = Motion.glassPush.spec<IntOffset>(IntOffset.VisibilityThreshold)
+    val recede = Motion.glassPush.spec<Float>()
+    return if (forward) {
+        slideInHorizontally(slide) { it } togetherWith
+            (slideOutHorizontally(slide) { -it / 4 } + scaleOut(recede, GLASS_RECEDED_SCALE) + fadeOut(recede, GLASS_RECEDED_ALPHA))
+    } else {
+        (slideInHorizontally(slide) { -it / 4 } + scaleIn(recede, GLASS_RECEDED_SCALE) + fadeIn(recede, GLASS_RECEDED_ALPHA)) togetherWith
+            slideOutHorizontally(slide) { it }
     }
 }
 
