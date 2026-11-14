@@ -205,6 +205,7 @@ data class AppSettings(
     val colorChoice: ColorChoice? = null,
     val barButtonSize: BarButtonSize = BarButtonSize.default,
     val interfaceStyle: InterfaceStyle = InterfaceStyle.default,
+    val seeThroughBar: Boolean = true,
 ) {
     val matchesMac: Boolean get() = colorChoice == null
 
@@ -226,6 +227,7 @@ class AppPreferences(private val store: KeyValueStore) {
             colorChoice = ColorChoice.of(store.string(KEY_COLOR)),
             barButtonSize = BarButtonSize.of(store.string(KEY_BAR_BUTTON_SIZE)) ?: BarButtonSize.default,
             interfaceStyle = InterfaceStyle.of(store.string(KEY_INTERFACE_STYLE)) ?: InterfaceStyle.default,
+            seeThroughBar = store.boolean(KEY_SEE_THROUGH_BAR) ?: true,
         ),
     )
 
@@ -249,6 +251,8 @@ class AppPreferences(private val store: KeyValueStore) {
         _settings.value = _settings.value.copy(interfaceStyle = style)
     }
 
+    fun setSeeThroughBar(value: Boolean) = put(KEY_SEE_THROUGH_BAR, value) { it.copy(seeThroughBar = value) }
+
     fun setCollapsesBottomBar(value: Boolean) = put(KEY_COLLAPSE_BOTTOM_BAR, value) { it.copy(collapsesBottomBar = value) }
 
     fun setAutoOpensKeyboard(value: Boolean) = put(KEY_AUTO_OPEN_KEYBOARD, value) { it.copy(autoOpensKeyboard = value) }
@@ -270,5 +274,6 @@ class AppPreferences(private val store: KeyValueStore) {
         const val KEY_COLOR = "settings.color"
         const val KEY_BAR_BUTTON_SIZE = "settings.barButtonSize"
         const val KEY_INTERFACE_STYLE = "settings.interfaceStyle"
+        const val KEY_SEE_THROUGH_BAR = "settings.seeThroughBar"
     }
 }

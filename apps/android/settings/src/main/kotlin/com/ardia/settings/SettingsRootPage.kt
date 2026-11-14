@@ -80,11 +80,21 @@ fun SettingsRootPage(nav: SettingsNav) {
             }
         }
         item(key = "buttons") {
-            SettingsGroup {
+            val glass = model.settings.interfaceStyle == InterfaceStyle.GLASS
+            SettingsGroup(
+                header = stringResource(R.string.settings_appearance),
+                footer = if (glass) stringResource(R.string.settings_see_through_bar_footer) else null,
+            ) {
                 PickerRow(
                     stringResource(R.string.settings_interface_style), InterfaceStyle.entries, model.settings.interfaceStyle, { it.title },
                     { model.settings.interfaceStyle = it }, icon = ArdiaSymbols.sparkles, tint = SettingsTint.bottomBar, showsDivider = true, tag = "interfaceStyle",
                 )
+                if (glass) {
+                    ToggleRow(
+                        stringResource(R.string.settings_see_through_bar), model.settings.seeThroughBar, { model.settings.seeThroughBar = it },
+                        icon = ArdiaSymbols.squareOnSquare, tint = SettingsTint.bottomBar, showsDivider = true, tag = "seeThroughBar",
+                    )
+                }
                 PickerRow(
                     stringResource(R.string.settings_bottom_button_size), BarButtonSize.entries, model.settings.barButtonSize, { it.title },
                     { model.settings.barButtonSize = it }, icon = ArdiaSymbols.textformatSize, tint = SettingsTint.bottomBar, tag = "barButtonSize",

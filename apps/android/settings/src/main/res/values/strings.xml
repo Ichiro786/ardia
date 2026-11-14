@@ -18,6 +18,9 @@
     <string name="settings_open_app_links_in">Open App Links In</string>
     <string name="settings_bottom_button_size">Bottom Button Size</string>
     <string name="settings_interface_style">Style</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_see_through_bar">See-Through Page Bar</string>
+    <string name="settings_see_through_bar_footer">The page shows through a frosted page bar, which hides as you scroll down. Turn it off if scrolling feels slow.</string>
     <string name="settings_clear_browsing_data">Clear Browsing Data</string>
     <string name="settings_export_open_tabs">Export Open Tabs</string>
     <string name="settings_open_tabs_from_ardia">Open Tabs from Ardia</string>

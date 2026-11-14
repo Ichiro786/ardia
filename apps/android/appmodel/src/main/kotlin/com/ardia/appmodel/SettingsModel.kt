@@ -45,6 +45,10 @@ class SettingsModel(private val preferences: AppPreferences) {
         get() = values.interfaceStyle
         set(value) = write { preferences.setInterfaceStyle(value) }
 
+    var seeThroughBar: Boolean
+        get() = values.seeThroughBar
+        set(value) = write { preferences.setSeeThroughBar(value) }
+
     var autoOpensKeyboard: Boolean
         get() = values.autoOpensKeyboard
         set(value) = write { preferences.setAutoOpensKeyboard(value) }

@@ -69,6 +69,10 @@ import com.ardia.design.LoadingLine
 import com.ardia.design.LocalArdiaDarkTheme
 import com.ardia.design.LocalBarButtonScale
 import com.ardia.design.LocalReduceMotion
+import com.ardia.design.FrostedBackdrop
+import com.ardia.design.LocalLiquidGlass
+import com.ardia.design.frostedBackdropSource
+import com.ardia.design.rememberFrostedBackdrop
 import com.ardia.design.Motion
 import com.ardia.store.BrowserTab
 import kotlin.math.roundToInt
@@ -97,7 +101,10 @@ fun BrowsingView(model: AppModel, isFront: Boolean, modifier: Modifier = Modifie
     val barScale = LocalBarButtonScale.current
     val barHeight = BarGeometry.height(navigationBottom, barScale)
     val collapses = model.settings.collapsesBottomBar
-    val pageBottomInset = if (collapses) 0.dp else BarGeometry.pageBottomInset(navigationBottom, barScale)
+    val seeThrough = LocalLiquidGlass.current && model.settings.seeThroughBar
+    val underlaps = collapses || seeThrough
+    val barBackdrop = rememberFrostedBackdrop()
+    val pageBottomInset = if (underlaps) 0.dp else BarGeometry.pageBottomInset(navigationBottom, barScale)
     val colors = page?.select { it.themeColor to it.backgroundColor }?.value
     val tone = tab?.let { model.tone(it, colors?.first, colors?.second) }
     val isFinding = model.browse.isFindPresented && page != null && isFront
@@ -145,13 +152,13 @@ fun BrowsingView(model: AppModel, isFront: Boolean, modifier: Modifier = Modifie
         model.browse.stepRequest = null
         stepTab(step.delta)
     }
-    LaunchedEffect(page, collapses) {
+    LaunchedEffect(page, underlaps) {
         page ?: return@LaunchedEffect
         page.state.map { it.scrollDirection }.distinctUntilChanged().collect { direction ->
-            barHidden = collapses && direction == ScrollDirection.Down
+            barHidden = underlaps && direction == ScrollDirection.Down
         }
     }
-    val toneBottomInset = with(density) { (if (collapses) barHeight else BarGeometry.PAGE_OVERLAP).toPx().roundToInt() }
+    val toneBottomInset = with(density) { (if (underlaps) barHeight else BarGeometry.PAGE_OVERLAP).toPx().roundToInt() }
     LaunchedEffect(page, isFront, toneBottomInset) {
         if (page == null || !isFront) return@LaunchedEffect
         page.state.map { Triple(it.isLoading, it.scrollDirection, it.isScrolledToTop) }.distinctUntilChanged().collectLatest { (loading, _, _) ->
@@ -213,7 +220,13 @@ fun BrowsingView(model: AppModel, isFront: Boolean, modifier: Modifier = Modifie
             val statusColor by animateColorAsState(tone?.topColor() ?: surface, tween(250), label = "statusTone")
             Column(Modifier.fillMaxSize().outgoingPagerPose(pager, corner).background(surface)) {
                 Box(Modifier.fillMaxWidth().height(statusTop).background(statusColor))
-                Box(Modifier.fillMaxWidth().weight(1f).padding(bottom = pageBottomInset)) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(bottom = pageBottomInset)
+                        .then(if (seeThrough) Modifier.frostedBackdropSource(barBackdrop) else Modifier),
+                ) {
                     PageContent(
                         tab = tab,
                         page = page,
@@ -243,6 +256,7 @@ fun BrowsingView(model: AppModel, isFront: Boolean, modifier: Modifier = Modifie
             model = model,
             pager = pager,
             tone = tone?.bottom,
+            backdrop = if (seeThrough) barBackdrop else null,
             hidden = barHidden || isFinding,
             height = barHeight,
             navigationBottom = navigationBottom,
@@ -286,6 +300,7 @@ private fun Bar(
     model: AppModel,
     pager: TabPager,
     tone: Int?,
+    backdrop: FrostedBackdrop?,
     hidden: Boolean,
     height: androidx.compose.ui.unit.Dp,
     navigationBottom: androidx.compose.ui.unit.Dp,
@@ -312,7 +327,7 @@ private fun Bar(
                 translationY = hide * travel
                 alpha = 1f - hide
             }
-            .barBacking(tone)
+            .barBacking(tone, backdrop)
             .tabPagerDrag(pager, enabled = !hidden),
     ) {
         if (!(hidden && gone)) {

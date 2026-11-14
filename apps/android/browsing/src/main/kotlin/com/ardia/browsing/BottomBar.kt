@@ -7,6 +7,11 @@ import com.ardia.design.GlassMenuItem
 import com.ardia.design.GlassMenuDivider
 import com.ardia.design.GlassMenu
 import com.ardia.design.Glass
+import com.ardia.design.FrostedBackdrop
+import com.ardia.design.FrostedStyle
+import com.ardia.design.adaptive
+import com.ardia.design.frosted
+import androidx.compose.ui.graphics.RectangleShape
 import android.graphics.Bitmap
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.animateColorAsState
@@ -316,12 +321,13 @@ private fun TabThumbnail(model: AppModel, tab: BrowserTab, modifier: Modifier = 
 }
 
 @Composable
-internal fun Modifier.barBacking(tone: Int?): Modifier {
+internal fun Modifier.barBacking(tone: Int?, backdrop: FrostedBackdrop? = null): Modifier {
     val look = ArdiaThemeState.look
     val surface = look.surface.current
     val target = tone?.let { Color(it) } ?: surface
     val color by animateColorAsState(target, Motion.barTone.spec(), label = "barTone")
     val toneIsDark = tone?.let(PageColors::isDark)
+    if (backdrop != null) return frosted(backdrop, RectangleShape, seeThroughBarStyle(color))
     return drawBehind {
         drawRect(color)
         when (toneIsDark) {
@@ -330,4 +336,19 @@ internal fun Modifier.barBacking(tone: Int?): Modifier {
             null -> Unit
         }
     }
+}
+
+private const val SEE_THROUGH_TINT_ALPHA = 0.62f
+private const val SEE_THROUGH_FALLBACK_ALPHA = 0.9f
+
+private fun seeThroughBarStyle(tone: Color): FrostedStyle {
+    val tint = tone.copy(alpha = SEE_THROUGH_TINT_ALPHA)
+    val fallback = tone.copy(alpha = SEE_THROUGH_FALLBACK_ALPHA)
+    return FrostedStyle(
+        blurRadius = 30.dp,
+        saturation = 1.8f,
+        tint = adaptive(tint, tint),
+        fallback = adaptive(fallback, fallback),
+        rim = Glass.groupRim,
+    )
 }
