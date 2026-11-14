@@ -18,8 +18,8 @@ class TabsDeckGeometryTest {
         near(58.949999999999996, geometry.focusLeading)
         near(194.71363636363637, geometry.spacing)
         near(54.47741498649223, geometry.leftReach)
-        near(437.5, geometry.cardCenterY)
-        near(812.0, geometry.barCenterY)
+        near(429.5, geometry.cardCenterY)
+        near(796.0, geometry.barCenterY)
         val expected = listOf(4.473785727261472, 6.0000015548565955, 13.594520377250092, 58.949999999999996, 253.66363636363636, 545.7340909090909)
         listOf(-3.0, -1.0, -0.5, 0.0, 1.0, 2.5).zip(expected).forEach { (relative, leading) -> near(leading, geometry.leading(relative)) }
         near(52.9499984451434, geometry.visibleWidth(-1.0, isLast = false))
@@ -34,13 +34,13 @@ class TabsDeckGeometryTest {
         near(592.5272727272727, landscape.cardSize.width)
         near(422.1272727272727, landscape.spacing)
         near(70.17123201800922, landscape.leftReach)
-        near(185.0, landscape.cardCenterY)
+        near(176.5, landscape.cardCenterY)
         near(57.62876900160697, landscape.leading(-3.0))
         val pixel = TabsDeckGeometry(DeckSize(360.0, 800.0), safeTop = 24.0, safeBottom = 0.0)
         near(250.36363636363635, pixel.cardSize.width)
         near(49.32640419919894, pixel.leftReach)
-        near(401.0, pixel.cardCenterY)
-        near(774.0, pixel.barCenterY)
+        near(392.0, pixel.cardCenterY)
+        near(756.0, pixel.barCenterY)
         near(499.90909090909093, pixel.leading(2.5))
     }
 

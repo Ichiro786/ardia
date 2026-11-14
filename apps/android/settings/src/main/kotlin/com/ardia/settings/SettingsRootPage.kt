@@ -49,6 +49,7 @@ import com.ardia.design.medium
 import com.ardia.design.semibold
 import com.ardia.store.AppLinkPreference
 import com.ardia.store.AutoArchiveInterval
+import com.ardia.store.BarButtonSize
 
 @Composable
 fun SettingsRootPage(nav: SettingsNav) {
@@ -74,6 +75,14 @@ fun SettingsRootPage(nav: SettingsNav) {
                     colorChoice = model.settings.colorChoice,
                     syncEnabled = model.syncState.isEnabled,
                     onColorChoice = model::setColorChoice,
+                )
+            }
+        }
+        item(key = "buttons") {
+            SettingsGroup {
+                PickerRow(
+                    stringResource(R.string.settings_bottom_button_size), BarButtonSize.entries, model.settings.barButtonSize, { it.title },
+                    { model.settings.barButtonSize = it }, icon = ArdiaSymbols.textformatSize, tint = SettingsTint.bottomBar, tag = "barButtonSize",
                 )
             }
         }

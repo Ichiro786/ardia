@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val signReleaseWithDebugKey = providers.gradleProperty("ardia.signReleaseWithDebugKey").map(String::toBoolean).getOrElse(false)
+
 android {
     namespace = "com.ardia.browser.android"
     compileSdk = libs.versions.compileSdk.get().toInt()
@@ -11,7 +13,7 @@ android {
         applicationId = "com.ardia.browser.android"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 1
+        versionCode = providers.environmentVariable("GITHUB_RUN_NUMBER").map(String::toInt).getOrElse(1)
         versionName = "0.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments["useTestStorageService"] = "true"
@@ -22,6 +24,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (signReleaseWithDebugKey) signingConfig = signingConfigs.getByName("debug")
         }
     }
 

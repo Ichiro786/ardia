@@ -39,13 +39,15 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.pageLeft
 import androidx.compose.ui.semantics.pageRight
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.ardia.appmodel.AppModel
 import com.ardia.design.ArdiaType
-import com.ardia.design.BrowseLayout
+import com.ardia.design.BarButtons
 import com.ardia.design.DeckSize
 import com.ardia.design.LocalArdiaDarkTheme
+import com.ardia.design.LocalBarButtonScale
 import com.ardia.design.LocalProfileLook
 import com.ardia.design.LocalReduceMotion
 import com.ardia.design.Spacing
@@ -56,10 +58,10 @@ import com.ardia.design.TabsLayout
 import com.ardia.design.TabsMotion
 import com.ardia.design.frostedBackdropSource
 import com.ardia.design.rememberFrostedBackdrop
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
 import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 
 @Composable
 fun TabSwitcherView(model: AppModel, modifier: Modifier = Modifier) {
@@ -76,8 +78,9 @@ fun TabSwitcherView(model: AppModel, modifier: Modifier = Modifier) {
         val safeSide = max(insets.getLeft(density, direction), insets.getRight(density, direction)) / density.density
         val width = maxWidth.value.toDouble()
         val height = maxHeight.value.toDouble()
-        val geometry = remember(width, height, safeTop, safeBottom, safeSide) {
-            TabsDeckGeometry(DeckSize(width, height), safeTop.toDouble(), safeBottom.toDouble(), safeSide.toDouble())
+        val barScale = LocalBarButtonScale.current
+        val geometry = remember(width, height, safeTop, safeBottom, safeSide, barScale) {
+            TabsDeckGeometry(DeckSize(width, height), safeTop.toDouble(), safeBottom.toDouble(), safeSide.toDouble(), BarButtons.lift(barScale).value.toDouble())
         }
         SideEffect { state.geometry = geometry }
         TabDeck(model, state, haptics, geometry)
@@ -203,7 +206,7 @@ private fun TabDeck(model: AppModel, state: DeckState, haptics: Haptics, geometr
                 .zIndex(OVERLAY_LAYER + 2)
                 .centeredAt(geometry.barCenterY)
                 .shieldsDeck()
-                .padding(horizontal = (geometry.safeSide + BAR_SIDE_PADDING).dp)
+                .padding(horizontal = geometry.safeSide.dp + barSidePadding(LocalBarButtonScale.current))
                 .graphicsLayer { alpha = state.chromeOpacity },
         )
         val cover = state.cover
@@ -215,8 +218,8 @@ private fun TabDeck(model: AppModel, state: DeckState, haptics: Haptics, geometr
                     .zIndex(OVERLAY_LAYER + 3)
                     .fillMaxSize()
                     .clearAndSetSemantics {}
-                    .background(SystemPalette.background.resolve(dark))
-                    .graphicsLayer { alpha = state.coverOpacity.value },
+                    .graphicsLayer { alpha = state.coverOpacity.value }
+                    .background(state.coverFill ?: SystemPalette.background.resolve(dark)),
                 contentScale = ContentScale.FillWidth,
                 alignment = Alignment.TopCenter,
             )
@@ -270,7 +273,10 @@ const val DECK_TAG = "tabs.deck"
 private const val EXPANDED_LAYER = 100_000f
 private const val OVERLAY_LAYER = 1_000_000f
 private const val ARCHIVE_CARD_RISE = 76.0
-private val BAR_SIDE_PADDING = TabsLayout.barSideInset.value - (BrowseLayout.hitTarget.value - TabsLayout.barCircle.value) / 2
+private fun barSidePadding(scale: Float): Dp {
+    val circle = TabsLayout.barCircle * scale
+    return TabsLayout.barSideInset - (BarButtons.hitTarget(circle) - circle) / 2
+}
 
 private fun Modifier.centeredAt(centerY: Double): Modifier = layout { measurable, constraints ->
     val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))

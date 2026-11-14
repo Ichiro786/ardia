@@ -8,36 +8,66 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 
-class SpeechRecorder private constructor(private val recognizer: SpeechRecognizer, private val events: DictationEvents) :
+class SpeechRecorder private constructor(private val context: Context, private val events: DictationEvents) :
     DictationRecorder,
     RecognitionListener {
 
+    private var recognizer: SpeechRecognizer? = null
+    private var isOnDevice = false
+    private var hasHeard = false
     private var isStopped = false
 
-    private fun begin() {
-        recognizer.setRecognitionListener(this)
+    private fun begin(onDevice: Boolean, preferOffline: Boolean = true) {
+        val created = if (onDevice && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
+        } else {
+            SpeechRecognizer.createSpeechRecognizer(context)
+        }
+        isOnDevice = onDevice && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        recognizer = created
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_WEB_SEARCH)
             .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+            .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, preferOffline)
             .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-        recognizer.startListening(intent)
+        try {
+            created.setRecognitionListener(this)
+            created.startListening(intent)
+        } catch (failure: RuntimeException) {
+            recognizer = null
+            created.destroy()
+            throw failure
+        }
     }
 
     override fun stop() {
         if (isStopped) return
         isStopped = true
-        recognizer.cancel()
-        recognizer.destroy()
+        release()
+    }
+
+    private fun release() {
+        val current = recognizer ?: return
+        recognizer = null
+        current.cancel()
+        current.destroy()
     }
 
     override fun onPartialResults(partialResults: Bundle?) {
-        best(partialResults)?.let { events.text(it, false) }
+        best(partialResults)?.let {
+            hasHeard = true
+            events.text(it, false)
+        }
     }
 
     override fun onResults(results: Bundle?) {
         val text = best(results)
-        if (text != null) events.text(text, true) else events.failure(null)
+        if (text != null) {
+            hasHeard = true
+            events.text(text, true)
+        } else {
+            events.failure(null)
+        }
     }
 
     override fun onRmsChanged(rmsdB: Float) {
@@ -46,6 +76,16 @@ class SpeechRecorder private constructor(private val recognizer: SpeechRecognize
 
     override fun onError(error: Int) {
         if (isStopped) return
+        if (isOnDevice && !hasHeard && SpeechLevel.needsCloudFallback(error)) {
+            release()
+            try {
+                begin(onDevice = false, preferOffline = false)
+                return
+            } catch (failure: RuntimeException) {
+                events.failure(DictationProblem.Service)
+                return
+            }
+        }
         events.failure(SpeechLevel.problem(error))
     }
 
@@ -67,8 +107,7 @@ class SpeechRecorder private constructor(private val recognizer: SpeechRecognize
 
         fun start(context: Context, events: DictationEvents): SpeechRecorder {
             val onDevice = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
-            val recognizer = if (onDevice) SpeechRecognizer.createOnDeviceSpeechRecognizer(context) else SpeechRecognizer.createSpeechRecognizer(context)
-            return SpeechRecorder(recognizer, events).also { it.begin() }
+            return SpeechRecorder(context, events).also { it.begin(onDevice) }
         }
     }
 }
@@ -78,6 +117,10 @@ object SpeechLevel {
     const val LOUD_RMS = 10f
 
     fun fromRms(rms: Float): Float = ((rms - QUIET_RMS) / (LOUD_RMS - QUIET_RMS)).coerceIn(0f, 1f)
+
+    fun needsCloudFallback(error: Int): Boolean =
+        error == SpeechRecognizer.ERROR_CLIENT ||
+            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && error == SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE)
 
     fun problem(error: Int): DictationProblem? = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&

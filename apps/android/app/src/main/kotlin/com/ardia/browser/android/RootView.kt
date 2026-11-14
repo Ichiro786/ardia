@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -24,6 +25,7 @@ import androidx.compose.ui.zIndex
 import com.ardia.appmodel.AppModel
 import com.ardia.browser.android.system.SystemSnapshotExport
 import com.ardia.design.ArdiaTheme
+import com.ardia.design.LocalBarButtonScale
 import com.ardia.design.LocalReduceMotion
 import com.ardia.design.Motion
 import com.ardia.design.ToastHost
@@ -41,7 +43,9 @@ object RootTags {
 @Composable
 fun ArdiaRoot(model: AppModel, createdAt: Long) {
     ArdiaTheme(darkTheme = isSystemInDarkTheme(), look = model.look) {
-        RootView(model)
+        CompositionLocalProvider(LocalBarButtonScale provides model.settings.barButtonSize.scale) {
+            RootView(model)
+        }
     }
     LaunchedEffect(model) {
         snapshotFlow { model.isReady }.filter { it }.first()

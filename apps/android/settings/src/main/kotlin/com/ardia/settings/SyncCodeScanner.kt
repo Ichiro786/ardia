@@ -68,6 +68,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.ardia.design.ArdiaSymbols
 import com.ardia.design.ArdiaType
@@ -95,6 +97,13 @@ object CameraAccessCheck {
         else -> CameraAccess.Checking
     }
 
+    fun afterResume(current: CameraAccess, granted: Boolean): CameraAccess = when {
+        current == CameraAccess.Unsupported -> current
+        granted -> CameraAccess.Ready
+        current == CameraAccess.Ready -> CameraAccess.Denied
+        else -> current
+    }
+
     fun appSettings(context: Context): Intent =
         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 }
@@ -111,6 +120,14 @@ fun SyncCodeScanner(onScan: (String) -> Unit, onEnterWords: () -> Unit, onCancel
     }
     LaunchedEffect(access) {
         if (access == CameraAccess.Checking) runCatching { permission.launch(Manifest.permission.CAMERA) }.onFailure { access = CameraAccess.Denied }
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val recheckOnResume = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) access = CameraAccessCheck.afterResume(access, CameraAccessCheck.isGranted(context))
+        }
+        lifecycleOwner.lifecycle.addObserver(recheckOnResume)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(recheckOnResume) }
     }
 
     Box(modifier.fillMaxSize().background(Color.Black)) {

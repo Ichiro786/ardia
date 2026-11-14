@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -62,6 +63,7 @@ class TrayDragState {
     var isDragging: Boolean by mutableStateOf(false)
         private set
     private var settleJob: Job? = null
+    internal var dismissTrayHeight: Dp = 0.dp
 
     fun progress(travel: Dp): Float = TrayDrag.progress(offsetDp.toDouble(), travel.value.toDouble()).toFloat()
 
@@ -107,42 +109,52 @@ fun Modifier.trayDismissDrag(
     enabled: Boolean = true,
 ): Modifier {
     if (!enabled) return this
-    return pointerInput(state, trayHeight, settleMotion) {
+    state.dismissTrayHeight = trayHeight
+    return pointerInput(state, settleMotion) {
         coroutineScope {
             var translation = 0.0
             var keyboardReleased = false
+            var ownsDrag = false
             val tracker = VelocityTracker()
-            detectVerticalDragGestures(
-                onDragStart = {
-                    translation = 0.0
-                    keyboardReleased = false
-                    tracker.resetTracking()
-                    state.begin()
-                },
-                onVerticalDrag = { change, amount ->
-                    tracker.addPosition(change.uptimeMillis, change.position)
-                    translation += amount / density
-                    if (!keyboardReleased && TrayDrag.releasesKeyboard(translation)) {
-                        keyboardReleased = true
-                        onReleaseKeyboard()
-                    }
-                    state.follow(translation)
-                    change.consume()
-                },
-                onDragEnd = {
-                    state.end()
-                    val velocity = tracker.calculateVelocity().y / density
-                    if (TrayDrag.shouldDismiss(translation, velocity.toDouble(), trayHeight.value.toDouble())) {
-                        onDismiss()
-                    } else {
+            try {
+                detectVerticalDragGestures(
+                    onDragStart = {
+                        translation = 0.0
+                        keyboardReleased = false
+                        tracker.resetTracking()
+                        ownsDrag = true
+                        state.begin()
+                    },
+                    onVerticalDrag = { change, amount ->
+                        tracker.addPosition(change.uptimeMillis, change.position)
+                        translation += amount / density
+                        if (!keyboardReleased && TrayDrag.releasesKeyboard(translation)) {
+                            keyboardReleased = true
+                            onReleaseKeyboard()
+                        }
+                        state.follow(translation)
+                        change.consume()
+                    },
+                    onDragEnd = {
+                        ownsDrag = false
+                        state.end()
+                        val velocity = tracker.calculateVelocity().y / density
+                        val height = state.dismissTrayHeight.value.toDouble()
+                        if (TrayDrag.shouldDismiss(translation, velocity.toDouble(), height)) {
+                            onDismiss()
+                        } else {
+                            state.launchSettle(launch { state.settle(settleMotion) })
+                        }
+                    },
+                    onDragCancel = {
+                        ownsDrag = false
+                        state.end()
                         state.launchSettle(launch { state.settle(settleMotion) })
-                    }
-                },
-                onDragCancel = {
-                    state.end()
-                    state.launchSettle(launch { state.settle(settleMotion) })
-                },
-            )
+                    },
+                )
+            } finally {
+                if (ownsDrag) state.reset()
+            }
         }
     }
 }

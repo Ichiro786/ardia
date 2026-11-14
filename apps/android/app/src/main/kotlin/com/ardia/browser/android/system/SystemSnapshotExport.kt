@@ -15,9 +15,11 @@ import com.ardia.sync.SyncState
 import com.ardia.sync.SyncedDevice
 import com.ardia.sync.SyncedProfile
 import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.withContext
@@ -84,6 +86,7 @@ class SystemSnapshotExporter(private val context: Context, private val store: Sy
         }
         var saved = 0
         for ((host, name) in hosts.entries.take(FAVICON_BUDGET)) {
+            ensureActive()
             val png = FaviconFetcher.png(host, FAVICON_SIDE)
             if (png != null && store.saveFavicon(png, name)) saved++ else failedHosts.add(host)
         }
@@ -98,6 +101,8 @@ class SystemSnapshotExporter(private val context: Context, private val store: Sy
 
 object FaviconFetcher {
     private const val TIMEOUT_MILLIS = 8_000
+    private const val MAX_BYTES = 1_048_576
+    private const val MAX_SIDE = 256
 
     fun png(host: String, side: Int): ByteArray? {
         for (path in listOf("/apple-touch-icon.png", "/favicon.ico")) {
@@ -121,11 +126,32 @@ object FaviconFetcher {
         connection.readTimeout = TIMEOUT_MILLIS
         try {
             if (connection.responseCode !in 200..299) return null
-            connection.inputStream.use { BitmapFactory.decodeStream(it) }
+            val bytes = connection.inputStream.use(::readCapped) ?: return null
+            decode(bytes)
         } finally {
             connection.disconnect()
         }
     }.getOrNull()
+
+    private fun readCapped(input: InputStream): ByteArray? {
+        val out = ByteArrayOutputStream()
+        val buffer = ByteArray(8_192)
+        while (true) {
+            val read = input.read(buffer)
+            if (read < 0) return out.toByteArray()
+            out.write(buffer, 0, read)
+            if (out.size() > MAX_BYTES) return null
+        }
+    }
+
+    private fun decode(bytes: ByteArray): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        var sample = 1
+        while (bounds.outWidth / (sample * 2) >= MAX_SIDE && bounds.outHeight / (sample * 2) >= MAX_SIDE) sample *= 2
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
+    }
 }
 
 @Composable

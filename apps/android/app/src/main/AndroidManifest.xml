@@ -63,6 +63,7 @@
 
         <activity
             android:name=".share.ShareActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode|density|fontScale|locale|layoutDirection"
             android:excludeFromRecents="true"
             android:exported="true"
             android:label="@string/share_label"

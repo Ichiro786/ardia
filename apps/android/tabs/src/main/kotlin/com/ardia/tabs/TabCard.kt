@@ -1,5 +1,6 @@
 package com.ardia.tabs
 
+import android.graphics.Bitmap
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -76,7 +77,11 @@ import com.ardia.design.Toasts
 import com.ardia.design.ardiaColor
 import com.ardia.design.parseHexColor
 import com.ardia.design.semibold
+import com.ardia.browser.PageColors
+import com.ardia.browser.ToneSampler
 import com.ardia.store.BrowserTab
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -95,7 +100,8 @@ internal fun DeckCardItem(model: AppModel, state: DeckState, haptics: Haptics, t
     val value = if (tab.isPrivate) stringResource(R.string.tabs_incognito_value, host) else host
     val hint = stringResource(R.string.tabs_card_hint)
     val closeLabel = stringResource(R.string.tabs_close_tab)
-    val image = rememberSnapshot(model, tab)
+    val snapshot = rememberSnapshot(model, tab)
+    val image = snapshot?.image
     Box(
         Modifier
             .deckCardPlacement(state, id, index, isLast, pose, shapes, TabsPalette.cardShadow)
@@ -118,7 +124,7 @@ internal fun DeckCardItem(model: AppModel, state: DeckState, haptics: Haptics, t
                 )
             },
     ) {
-        TabCardContent(tab, image, title, host)
+        TabCardContent(tab, image, title, host, snapshot?.bottomFill)
         if (TabText.isUnseenReceived(tab)) ReceivedBadge(Modifier.padding(10.dp))
         DropdownMenu(expanded = state.menuFor == id, onDismissRequest = { if (state.menuFor == id) state.menuFor = null }) {
             CardMenu(model, tab, dismiss = { state.menuFor = null }, close = { state.close(id, animated = true) }, copied = haptics::success)
@@ -195,7 +201,7 @@ private fun DeckHeaderRow(icon: @Composable () -> Unit, title: @Composable () ->
 }
 
 @Composable
-internal fun TabCardContent(tab: BrowserTab, image: ImageBitmap?, title: String, host: String) {
+internal fun TabCardContent(tab: BrowserTab, image: ImageBitmap?, title: String, host: String, bottomFill: Color? = null) {
     val dark = LocalArdiaDarkTheme.current
     val background = when {
         tab.isPrivate -> TabsPalette.incognitoCard
@@ -212,7 +218,10 @@ internal fun TabCardContent(tab: BrowserTab, image: ImageBitmap?, title: String,
             Image(
                 image,
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = appear.value },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = appear.value }
+                    .background(bottomFill ?: background),
                 contentScale = ContentScale.FillWidth,
                 alignment = Alignment.TopCenter,
             )
@@ -220,22 +229,50 @@ internal fun TabCardContent(tab: BrowserTab, image: ImageBitmap?, title: String,
     }
 }
 
+internal class CardSnapshot(val image: ImageBitmap, val bottomFill: Color?)
+
 @Composable
-private fun rememberSnapshot(model: AppModel, tab: BrowserTab): ImageBitmap? {
+private fun rememberSnapshot(model: AppModel, tab: BrowserTab): CardSnapshot? {
     val memory = model.deck.memoryImage(tab.id)
     val version = model.snapshotVersion(tab.id)
     val current by rememberUpdatedState(tab)
-    var image by remember(tab.id) { mutableStateOf(memory?.asImageBitmap()) }
+    var snapshot by remember(tab.id) { mutableStateOf(memory?.let { CardSnapshot(it.asImageBitmap(), null) }) }
     LaunchedEffect(tab.id, tab.snapshotFileName, version, memory) {
-        if (memory != null) {
-            image = memory.asImageBitmap()
-            return@LaunchedEffect
-        }
-        val loaded = model.snapshotImage(current) ?: return@LaunchedEffect
-        loaded.prepareToDraw()
-        image = loaded.asImageBitmap()
+        val bitmap = memory ?: model.snapshotImage(current) ?: return@LaunchedEffect
+        if (memory == null) bitmap.prepareToDraw()
+        val fill = withContext(Dispatchers.Default) { SnapshotEdge.bottomColor(bitmap) }
+        snapshot = CardSnapshot(bitmap.asImageBitmap(), fill?.let { Color(it) })
     }
-    return image
+    return snapshot
+}
+
+internal object SnapshotEdge {
+    private const val COLUMNS = 24
+    private const val ROWS = 3
+
+    fun bottomColor(bitmap: Bitmap): Int? = runCatching {
+        if (bitmap.isRecycled || bitmap.config == Bitmap.Config.HARDWARE || bitmap.width <= 0 || bitmap.height <= 0) return null
+        val rows = min(ROWS, bitmap.height)
+        val pixels = IntArray(COLUMNS * rows) { index ->
+            val x = (index % COLUMNS) * (bitmap.width - 1) / (COLUMNS - 1)
+            val y = bitmap.height - 1 - index / COLUMNS
+            bitmap.getPixel(x, y)
+        }
+        ToneSampler.dominant(pixels) ?: average(pixels)
+    }.getOrNull()
+
+    private fun average(pixels: IntArray): Int {
+        var red = 0L
+        var green = 0L
+        var blue = 0L
+        for (pixel in pixels) {
+            red += (pixel shr 16) and 0xFF
+            green += (pixel shr 8) and 0xFF
+            blue += pixel and 0xFF
+        }
+        val count = pixels.size.coerceAtLeast(1)
+        return PageColors.opaque((red / count).toInt(), (green / count).toInt(), (blue / count).toInt())
+    }
 }
 
 @Composable

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -62,12 +63,13 @@ fun SearchTrayHost(model: AppModel, modifier: Modifier = Modifier) {
     val imeSource = WindowInsets.imeAnimationSource
     val imeTarget = WindowInsets.imeAnimationTarget
     val navigation = WindowInsets.navigationBars
-    val keyboard = remember(ime, imeSource, imeTarget, navigation, density) { KeyboardReader(ime, imeSource, imeTarget, navigation, density) }
+    val keyboard = remember(ime, imeSource, imeTarget, navigation) { KeyboardReader(ime, imeSource, imeTarget, navigation, density) }
+    SideEffect { keyboard.density = density }
     val presentation = remember(keyboard) { TrayPresentation(scope, keyboard) }
     var containerHeight by remember { mutableIntStateOf(0) }
     val request = model.browse.search
 
-    LaunchedEffect(request) {
+    LaunchedEffect(request, presentation) {
         if (request != null) {
             drag.reset()
             presentation.present(request, model.mayFocusSearch, if (reduceMotion) Motion.reducedSettle else Motion.searchRise)
@@ -145,7 +147,7 @@ fun SearchTrayHost(model: AppModel, modifier: Modifier = Modifier) {
         )
 
         val fontScale = density.fontScale
-        val maxHeight by remember(presentation, fontScale) {
+        val maxHeight by remember(presentation, density) {
             derivedStateOf {
                 val preferred = BrowseLayout.sheetAboveKeyboard.value + BrowseLayout.searchFieldHeight.value * (fontScale - 1f)
                 val container = containerHeight / density.density

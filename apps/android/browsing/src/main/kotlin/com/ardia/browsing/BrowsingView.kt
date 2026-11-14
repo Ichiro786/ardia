@@ -12,6 +12,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -31,9 +33,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -59,17 +63,19 @@ import com.ardia.browser.FullscreenVideo
 import com.ardia.browser.PageColors
 import com.ardia.browser.ScrollDirection
 import com.ardia.design.ArdiaThemeState
+import com.ardia.design.BarButtons
 import com.ardia.design.BrowseLayout
 import com.ardia.design.LoadingLine
 import com.ardia.design.LocalArdiaDarkTheme
+import com.ardia.design.LocalBarButtonScale
 import com.ardia.design.LocalReduceMotion
 import com.ardia.design.Motion
 import com.ardia.store.BrowserTab
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import kotlin.math.roundToInt
 
 @Composable
 fun BrowsingView(model: AppModel, isFront: Boolean, modifier: Modifier = Modifier) {
@@ -88,9 +94,10 @@ fun BrowsingView(model: AppModel, isFront: Boolean, modifier: Modifier = Modifie
     var showsSiteSettings by remember { mutableStateOf(false) }
     val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val navigationBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val barHeight = BarGeometry.height(navigationBottom)
+    val barScale = LocalBarButtonScale.current
+    val barHeight = BarGeometry.height(navigationBottom, barScale)
     val collapses = model.settings.collapsesBottomBar
-    val pageBottomInset = if (collapses) 0.dp else BarGeometry.pageBottomInset(navigationBottom)
+    val pageBottomInset = if (collapses) 0.dp else BarGeometry.pageBottomInset(navigationBottom, barScale)
     val colors = page?.select { it.themeColor to it.backgroundColor }?.value
     val tone = tab?.let { model.tone(it, colors?.first, colors?.second) }
     val isFinding = model.browse.isFindPresented && page != null && isFront
@@ -222,13 +229,15 @@ fun BrowsingView(model: AppModel, isFront: Boolean, modifier: Modifier = Modifie
             PagerNeighbors(model, pager, statusTop, corner)
         }
         if (page != null) {
-            val progress by page.select { it.progress }
-            val loading by page.select { it.isLoading }
-            LoadingLine(
-                progress = loadFreeze ?: progress.toDouble(),
-                isLoading = loadFreeze != null || loading,
-                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding(),
-            )
+            key(page) {
+                val progress by page.select { it.progress }
+                val loading by page.select { it.isLoading }
+                LoadingLine(
+                    progress = loadFreeze ?: progress.toDouble(),
+                    isLoading = loadFreeze != null || loading,
+                    modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding(),
+                )
+            }
         }
         Bar(
             model = model,
@@ -243,7 +252,14 @@ fun BrowsingView(model: AppModel, isFront: Boolean, modifier: Modifier = Modifie
             onSelectTab = ::switchTab,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
-        page?.takeIf { isFinding }?.let { FindBar(it, onDone = model::endFindOnPage, modifier = Modifier.align(Alignment.BottomCenter)) }
+        AnimatedVisibility(
+            visible = isFinding,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = if (reduceMotion) fadeIn(Motion.reducedFade.spec()) else slideInVertically(Motion.searchRise.spec()) { it },
+            exit = if (reduceMotion) fadeOut(Motion.reducedFade.spec()) else slideOutVertically(Motion.trayDismiss.spec()) { it },
+        ) {
+            page?.let { FindBar(it, onDone = model::endFindOnPage) }
+        }
         if (fullscreen != null) FullscreenVideoLayer(fullscreen)
         if (tab != null) {
             LaunchedEffect(menuVisible) { if (menuVisible) showsSiteSettings = false }
@@ -312,8 +328,8 @@ private fun Bar(
                     onCloseTab = { model.tabs.selectedTabId?.let(model::closeTab) },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = BarGeometry.centerFromBottom(navigationBottom) - BrowseLayout.hitTarget / 2)
-                        .height(BrowseLayout.hitTarget),
+                        .padding(bottom = BarGeometry.centerFromBottom(navigationBottom, LocalBarButtonScale.current) - BarButtons.rowHeight(LocalBarButtonScale.current) / 2)
+                        .height(BarButtons.rowHeight(LocalBarButtonScale.current)),
                 )
             }
         }
@@ -332,14 +348,15 @@ private fun rememberCover(model: AppModel, pager: TabPager, tab: BrowserTab): Bi
 
 @Composable
 private fun ReaderLayer(model: AppModel, readerId: String?, settings: ReaderSettings) {
-    var shownId by remember { mutableStateOf(readerId) }
-    if (readerId != null) shownId = readerId
+    val reduceMotion = LocalReduceMotion.current
+    val lastId = remember { mutableStateOf(readerId) }
+    SideEffect { if (readerId != null) lastId.value = readerId }
     AnimatedVisibility(
         visible = readerId != null,
-        enter = slideInVertically(Motion.searchRise.spec()) { it },
-        exit = slideOutVertically(Motion.trayDismiss.spec()) { it },
+        enter = if (reduceMotion) fadeIn(Motion.reducedFade.spec()) else slideInVertically(Motion.searchRise.spec()) { it },
+        exit = if (reduceMotion) fadeOut(Motion.reducedFade.spec()) else slideOutVertically(Motion.trayDismiss.spec()) { it },
     ) {
-        val id = shownId ?: return@AnimatedVisibility
+        val id = readerId ?: lastId.value ?: return@AnimatedVisibility
         ReaderView(model.page(id), settings, onDone = { model.browse.readerTabId = null })
     }
 }

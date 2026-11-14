@@ -26,7 +26,8 @@ object TabsLayout {
     val faviconRadius = 4.dp
     val headerSpacing = 6.dp
     val headerGap = 8.dp
-    val barCircle = 35.dp
+    val barCircle = 40.dp
+    val barSymbol = 19.dp
     val barPlus = DpSize(78.dp, 40.dp)
     val barSideInset = 16.dp
     val tileRadius = 16.dp

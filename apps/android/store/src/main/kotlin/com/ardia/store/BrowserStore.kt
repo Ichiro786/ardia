@@ -1,12 +1,15 @@
 package com.ardia.store
 
 import android.content.Context
+import android.database.sqlite.SQLiteException
 import java.io.File
 import java.time.ZoneId
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
+
+class StoreOpenException(cause: Throwable) : Exception("The browser database could not be opened", cause)
 
 class BrowserStore private constructor(
     val tabs: TabStore,
@@ -24,6 +27,7 @@ class BrowserStore private constructor(
     suspend fun flush(): Boolean = tabs.flush()
 
     override fun close() {
+        runCatching { tabs.flushBlocking() }
         queue.close()
         database.close()
     }
@@ -40,7 +44,15 @@ class BrowserStore private constructor(
             callbackDispatcher: CoroutineDispatcher = Dispatchers.Main,
         ): BrowserStore = withContext(Dispatchers.IO) {
             val settings = SharedPreferencesStore(context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE))
-            assemble(BrowserDatabase(context), settings, File(context.cacheDir, SNAPSHOT_FOLDER), StoreQueue(), clock, zone, callbackDispatcher)
+            val database = BrowserDatabase(context)
+            val queue = StoreQueue()
+            try {
+                assemble(database, settings, File(context.cacheDir, SNAPSHOT_FOLDER), queue, clock, zone, callbackDispatcher)
+            } catch (failure: SQLiteException) {
+                queue.close()
+                runCatching { database.close() }
+                throw StoreOpenException(failure)
+            }
         }
 
         suspend fun demo(

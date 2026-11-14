@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -173,6 +174,7 @@ class ToastCenter(private val scope: CoroutineScope) {
             return
         }
         current = toast
+        isHeld = false
         scheduleDismissal(toast.id, toast.durationMillis)
     }
 
@@ -260,8 +262,6 @@ fun ToastHost(center: ToastCenter, modifier: Modifier = Modifier, clearance: Dp 
     val reduceMotion = LocalReduceMotion.current
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
-    val drag = remember { Animatable(0f) }
-    var travelled by remember { mutableStateOf(0f) }
     Box(
         modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing),
         contentAlignment = if (keyboard) Alignment.TopCenter else Alignment.BottomCenter,
@@ -288,6 +288,8 @@ fun ToastHost(center: ToastCenter, modifier: Modifier = Modifier, clearance: Dp 
             label = "toast",
         ) { toast ->
             if (toast == null) return@AnimatedContent
+            val drag = remember { Animatable(0f) }
+            var travelled by remember { mutableFloatStateOf(0f) }
             val draggable = rememberDraggableState { delta ->
                 val next = drag.value + delta / density.density
                 travelled = next
@@ -308,16 +310,16 @@ fun ToastHost(center: ToastCenter, modifier: Modifier = Modifier, clearance: Dp 
                         Orientation.Vertical,
                         onDragStarted = {
                             travelled = drag.value
-                            center.hold(true)
+                            if (center.current?.id == toast.id) center.hold(true)
                         },
                         onDragStopped = { velocity ->
                             val translation = travelled
                             val predicted = translation + velocity / density.density * ToastDefaults.PROJECTION_SECONDS
+                            val isCurrent = center.current?.id == toast.id
                             if (predicted > ToastDefaults.FLING_DISTANCE_DP || translation > ToastDefaults.DRAG_DISTANCE_DP) {
-                                center.dismiss()
-                                drag.snapTo(0f)
+                                if (isCurrent) center.dismiss()
                             } else {
-                                center.hold(false)
+                                if (isCurrent) center.hold(false)
                                 drag.animateTo(0f, Motion.snappy.spec())
                             }
                         },

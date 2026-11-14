@@ -3,6 +3,7 @@ package com.ardia.appmodel
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.webkit.CookieManager
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -19,6 +20,7 @@ import com.ardia.blocking.MyFiltersResult
 import com.ardia.browser.BrowserUrl as PageUrl
 import com.ardia.browser.DownloadFailure
 import com.ardia.browser.DownloadOutcome
+import com.ardia.browser.DownloadProgress
 import com.ardia.browser.Page
 import com.ardia.browser.PageColors
 import com.ardia.browser.PageDownload
@@ -29,7 +31,6 @@ import com.ardia.browser.PageState
 import com.ardia.browser.PageTone
 import com.ardia.browser.PopupRequest
 import com.ardia.browser.PrivatePagesUnavailableException
-import com.ardia.browser.DownloadProgress
 import com.ardia.browser.SitePreferences
 import com.ardia.browser.VisitKind
 import com.ardia.browser.WebsiteDataKind
@@ -76,6 +77,7 @@ import com.ardia.sync.SyncState
 import com.ardia.sync.SyncedDevice
 import com.ardia.sync.SyncedProfile
 import java.net.URLEncoder
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -199,6 +201,8 @@ class AppModel(
     private val freshTabs = HashMap<String, VisitKind>()
     private var isActive = false
     private var appliedSearchKey: Any? = null
+    private var isOpeningStore = false
+    private var storeOpenFailed = false
 
     init {
         mirrorServices()
@@ -262,7 +266,20 @@ class AppModel(
     }
 
     private suspend fun loadStore() {
-        val loaded = environment.openStore()
+        if (isOpeningStore || store != null) return
+        isOpeningStore = true
+        val loaded = try {
+            environment.openStore()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            storeOpenFailed = true
+            toasts.show(Toast(STORE_UNAVAILABLE, ArdiaSymbols.exclamationmarkTriangleFill, Toast.LONG_DURATION_MILLIS))
+            return
+        } finally {
+            isOpeningStore = false
+        }
+        storeOpenFailed = false
         attachStore(loaded)
     }
 
@@ -335,6 +352,7 @@ class AppModel(
 
     fun sceneBecameActive() {
         isActive = true
+        if (storeOpenFailed && store == null) scope.launch { loadStore() }
         tabStore?.appBecameActive()
         sync.appForegrounded()
         applySyncedSearch()
@@ -351,6 +369,7 @@ class AppModel(
 
     fun sceneEnteredBackground() {
         savePageStates()
+        if (engine != null && !isDemo) runCatching { CookieManager.getInstance().flush() }
         sync.appBackgrounded()
     }
 
@@ -1315,6 +1334,7 @@ class AppModel(
         fun couldNotSend(deviceName: String) = "Couldn’t Send to $deviceName"
 
         const val SAVE_FAILED = "Ardia Can’t Save Tabs and History"
+        const val STORE_UNAVAILABLE = "Ardia Can’t Open Your Tabs. Free Up Space and Reopen Ardia."
 
         fun stoppedPrivateDownloads(count: Int) = if (count == 1) "Stopped 1 Private Download" else "Stopped $count Private Downloads"
 

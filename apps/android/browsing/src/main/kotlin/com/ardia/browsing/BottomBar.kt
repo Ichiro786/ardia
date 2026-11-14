@@ -57,10 +57,12 @@ import com.ardia.appmodel.AppModel
 import com.ardia.browser.PageColors
 import com.ardia.design.ArdiaSymbols
 import com.ardia.design.ArdiaThemeState
+import com.ardia.design.BarButtons
 import com.ardia.design.BarPalette
 import com.ardia.design.BrowseLayout
 import com.ardia.design.BrowsePalette
 import com.ardia.design.FaviconImage
+import com.ardia.design.LocalBarButtonScale
 import com.ardia.design.Motion
 import com.ardia.design.SystemPalette
 import com.ardia.design.TabsPalette
@@ -105,6 +107,9 @@ internal fun BottomBar(
     val previous = stringResource(R.string.browsing_previous_tab)
     val next = stringResource(R.string.browsing_next_tab)
     val hint = stringResource(R.string.browsing_tabs_hint)
+    val scale = LocalBarButtonScale.current
+    val plus = BrowseLayout.plusCapsule * scale
+    val chevron = BrowseLayout.chevronCircle * scale
     Row(
         modifier.fillMaxWidth().padding(horizontal = BrowseLayout.barSideInset - 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -115,7 +120,7 @@ internal fun BottomBar(
                 Modifier
                     .testTag(BrowsingTags.TABS)
                     .barPress(interaction)
-                    .size(47.dp, BrowseLayout.hitTarget)
+                    .size(47.dp * scale, BarButtons.rowHeight(scale))
                     .combinedClickable(
                         interactionSource = interaction,
                         indication = null,
@@ -135,11 +140,20 @@ internal fun BottomBar(
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                TabStackGlyph(model, order.takeLast(2), Modifier.offset(x = (-2.8).dp))
+                TabStackGlyph(
+                    model,
+                    order.takeLast(2),
+                    Modifier
+                        .offset(x = (-2.8).dp * scale)
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                        },
+                )
             }
             RecentTabsMenu(model, order, showsRecent, onDismiss = { showsRecent = false }, onSelectTab = onSelectTab, onCloseTab = onCloseTab)
         }
-        Box(Modifier.size(BrowseLayout.plusCapsule), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(plus), contentAlignment = Alignment.Center) {
             if (!isSearchPresented) {
                 val interaction = remember { MutableInteractionSource() }
                 val label = stringResource(R.string.browsing_new_search)
@@ -147,7 +161,7 @@ internal fun BottomBar(
                     Modifier
                         .testTag(BrowsingTags.PLUS)
                         .barPress(interaction)
-                        .size(BrowseLayout.plusCapsule)
+                        .size(plus)
                         .clip(CircleShape)
                         .background(BarPalette.plusFill.current)
                         .border(0.33.dp, BarPalette.controlEdge.current, CircleShape)
@@ -158,7 +172,7 @@ internal fun BottomBar(
                         },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(ArdiaSymbols.plus, null, Modifier.size(17.dp), tint = BrowsePalette.foregroundPrimary.current)
+                    Icon(ArdiaSymbols.plus, null, Modifier.size(17.dp * scale), tint = BrowsePalette.foregroundPrimary.current)
                 }
             }
         }
@@ -169,7 +183,7 @@ internal fun BottomBar(
                 Modifier
                     .testTag(BrowsingTags.MORE)
                     .barPress(interaction)
-                    .size(BrowseLayout.hitTarget)
+                    .size(BarButtons.hitTarget(chevron))
                     .combinedClickable(interactionSource = interaction, indication = null, onClick = onMore)
                     .semantics {
                         contentDescription = label
@@ -179,12 +193,12 @@ internal fun BottomBar(
             ) {
                 Box(
                     Modifier
-                        .size(BrowseLayout.chevronCircle)
+                        .size(chevron)
                         .background(BarPalette.chevronFill.current, CircleShape)
                         .border(0.33.dp, BarPalette.controlEdge.current, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(ArdiaSymbols.chevronUp, null, Modifier.size(16.dp), tint = BrowsePalette.foregroundPrimary.current)
+                    Icon(ArdiaSymbols.chevronUp, null, Modifier.size(16.dp * scale), tint = BrowsePalette.foregroundPrimary.current)
                 }
             }
         }

@@ -219,7 +219,7 @@ scripts/gradle-locked :<module>:assembleDebugAndroidTest   one module's device t
 scripts/gradle-locked connectedDebugAndroidTest --continue  every module's device tests on the one emulator
 ```
 
-Needs JDK 17 or later, the Android SDK (`ANDROID_HOME` or `local.properties`), NDK 27.1.12297006 and CMake 3.22.1. The
+Needs JDK 17 or later, the Android SDK (`ANDROID_HOME` or `local.properties`), NDK 28.2.13676358 and CMake 3.22.1. The
 first build downloads Gradle, Hermes, `react-android` (for `libjsi.so`) and `hermes-compiler`.
 
 - **JVM unit tests** in each module's `src/test`: the sync core against the reference vectors and the 0.2.32 fixture,

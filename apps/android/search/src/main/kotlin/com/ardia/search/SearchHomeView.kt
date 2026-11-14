@@ -1,5 +1,6 @@
 package com.ardia.search
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -42,17 +43,17 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.max
 import com.ardia.appmodel.AppModel
 import com.ardia.design.ArdiaSymbols
+import com.ardia.design.BarButtons
 import com.ardia.design.BrowseLayout
 import com.ardia.design.BrowsePalette
 import com.ardia.design.FidgetLogo
 import com.ardia.design.FrostedBackdrop
 import com.ardia.design.FrostedStyle
 import com.ardia.design.LocalArdiaDarkTheme
+import com.ardia.design.LocalBarButtonScale
 import com.ardia.design.LocalReduceMotion
 import com.ardia.design.Motion
 import com.ardia.design.ProfileBackdrop
@@ -84,10 +85,16 @@ fun SearchHomeView(model: AppModel, modifier: Modifier = Modifier) {
         val frost = rememberFrostedBackdrop()
         Box(modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().frostedBackdropSource(frost)) {
-                if (isIncognito) {
-                    ProfileBackdrop(Modifier.fillMaxSize(), look = ProfileLook.incognito)
-                } else {
-                    ProfileBackdrop(Modifier.fillMaxSize(), themed = true)
+                Crossfade(
+                    targetState = isIncognito,
+                    animationSpec = (if (reduceMotion) Motion.reducedFade else Motion.surfaceSwap).spec(),
+                    label = "homeBackdrop",
+                ) { incognito ->
+                    if (incognito) {
+                        ProfileBackdrop(Modifier.fillMaxSize(), look = ProfileLook.incognito)
+                    } else {
+                        ProfileBackdrop(Modifier.fillMaxSize(), themed = true)
+                    }
                 }
             }
             val hidden = if (isTrayUp) Modifier.clearAndSetSemantics {} else Modifier
@@ -125,16 +132,19 @@ private fun DeckBar(model: AppModel, frost: FrostedBackdrop, enabled: Boolean, m
     val navigationBottom = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
     val safe = WindowInsets.safeDrawing
     val safeSide = with(density) { maxOf(safe.getLeft(this, direction), safe.getRight(this, direction)).toDp() }
-    val centerFromBottom = max(navigationBottom, 20.dp) + 6.dp
-    val side = safeSide + TabsLayout.barSideInset - (BrowseLayout.hitTarget - TabsLayout.barCircle) / 2
+    val scale = LocalBarButtonScale.current
+    val circle = TabsLayout.barCircle * scale
+    val rowHeight = BarButtons.rowHeight(scale)
+    val centerFromBottom = BrowseLayout.barCenter(navigationBottom, scale)
+    val side = safeSide + TabsLayout.barSideInset - (BarButtons.hitTarget(circle) - circle) / 2
     val opensTabs = model.deckTabs.isNotEmpty()
     val syncs = model.syncState.isEnabled
     Row(
         modifier
             .fillMaxWidth()
             .padding(horizontal = side)
-            .padding(bottom = centerFromBottom - BrowseLayout.hitTarget / 2)
-            .height(BrowseLayout.hitTarget),
+            .padding(bottom = centerFromBottom - rowHeight / 2)
+            .height(rowHeight),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         DeckCircleButton(
@@ -177,10 +187,11 @@ private fun PlusButton(model: AppModel, frost: FrostedBackdrop, enabled: Boolean
     val hint = stringResource(R.string.deck_more_options)
     val interaction = remember { MutableInteractionSource() }
     val shape = RoundedCornerShape(50)
-    Box(Modifier.height(BrowseLayout.hitTarget), contentAlignment = Alignment.Center) {
+    val scale = LocalBarButtonScale.current
+    Box(Modifier.height(BarButtons.rowHeight(scale)), contentAlignment = Alignment.Center) {
         Box(
             Modifier
-                .size(TabsLayout.barPlus.width, TabsLayout.barPlus.height)
+                .size(TabsLayout.barPlus * scale)
                 .frosted(frost, shape, FrostedStyle.glass)
                 .combinedClickable(
                     interactionSource = interaction,
@@ -203,7 +214,7 @@ private fun PlusButton(model: AppModel, frost: FrostedBackdrop, enabled: Boolean
                 },
             contentAlignment = Alignment.Center,
         ) {
-            Icon(ArdiaSymbols.plus, null, Modifier.size(20.dp), tint = SystemPalette.label.current)
+            Icon(ArdiaSymbols.plus, null, Modifier.size(20.dp * scale), tint = SystemPalette.label.current)
         }
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
             val canReopen = model.tabs.canReopenClosed
@@ -240,9 +251,11 @@ private fun MenuItem(label: String, icon: ImageVector, onClick: () -> Unit) {
 @Composable
 private fun DeckCircleButton(symbol: ImageVector, label: String, frost: FrostedBackdrop, enabled: Boolean, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
+    val scale = LocalBarButtonScale.current
+    val circle = TabsLayout.barCircle * scale
     Box(
         Modifier
-            .size(BrowseLayout.hitTarget)
+            .size(BarButtons.hitTarget(circle))
             .combinedClickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onClick)
             .semantics {
                 contentDescription = label
@@ -250,10 +263,9 @@ private fun DeckCircleButton(symbol: ImageVector, label: String, frost: FrostedB
             },
         contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.size(TabsLayout.barCircle).frosted(frost, CircleShape, FrostedStyle.glass), contentAlignment = Alignment.Center) {
-            Icon(symbol, null, Modifier.size(DECK_SYMBOL), tint = BrowsePalette.foregroundSecondary.current)
+        Box(Modifier.size(circle).frosted(frost, CircleShape, FrostedStyle.glass), contentAlignment = Alignment.Center) {
+            Icon(symbol, null, Modifier.size(TabsLayout.barSymbol * scale), tint = BrowsePalette.foregroundSecondary.current)
         }
     }
 }
 
-private val DECK_SYMBOL: Dp = 17.dp
